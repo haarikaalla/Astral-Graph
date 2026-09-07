@@ -1,0 +1,49 @@
+# ---- AstralGraph dependencies (all free tier) ----
+
+# MCP core (official Python SDK) — works on both 1.x (FastMCP) and 2.x (MCPServer)
+mcp>=1.9.0
+
+# Orchestration
+langgraph>=0.2.60
+langchain-core>=0.3.29
+
+# LLM provider
+anthropic>=0.42.0
+
+# API layer
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+sse-starlette>=2.1.3
+python-multipart>=0.0.12
+
+# Validation / config
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+python-dotenv>=1.0.1
+
+# HTTP
+httpx>=0.27.0
+
+# Knowledge graph
+networkx>=3.3
+neo4j>=5.25.0            # optional backend, only used if NEO4J_URI is set
+
+# RAG
+chromadb>=0.5.20
+sentence-transformers>=3.3.0
+feedparser>=6.0.11        # arXiv Atom feed ingestion
+datasets>=3.1.0           # HuggingFace astronomy dataset
+
+# Observability
+langfuse>=2.53.0
+structlog>=24.4.0
+rich>=13.9.0
+
+# Dashboard
+streamlit>=1.40.0
+plotly>=5.24.0
+pandas>=2.2.0
+
+# Testing
+pytest>=8.3.0
+pytest-asyncio>=0.24.0

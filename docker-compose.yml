@@ -1,0 +1,46 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      ASTRAL_FS_ROOT: /app/workspace_data
+      ASTRAL_CHROMA_DIR: /app/storage/chroma
+      ASTRAL_LOG_DIR: /app/storage/logs
+    volumes:
+      - ./storage:/app/storage
+      - ./workspace_data:/app/workspace_data
+      - ./eval/results:/app/eval/results
+
+  ui:
+    build: .
+    command: streamlit run ui/app.py --server.address 0.0.0.0 --server.port 8501
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    depends_on:
+      - api
+    volumes:
+      - ./storage:/app/storage
+      - ./workspace_data:/app/workspace_data
+      - ./eval/results:/app/eval/results
+
+  # Optional: the knowledge graph mirrors into Neo4j when NEO4J_URI is set.
+  # Start with:  docker compose --profile neo4j up
+  neo4j:
+    image: neo4j:5-community
+    profiles: ["neo4j"]
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/astralgraph
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - neo4j_data:/data
+
+volumes:
+  neo4j_data:
