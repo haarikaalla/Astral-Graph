@@ -61,16 +61,16 @@ flowchart LR
 
 | Technique | Where it lives |
 | --- | --- |
-| 🧠 **Multi-agent orchestration** — stateful graph, conditional routing, parallel fan-out | [agents/workflow.py](agents/workflow.py) |
-| 🔧 **Tool-calling over a standard protocol** — dynamic discovery, not hardcoded functions | [core/mcp_client.py](core/mcp_client.py) |
-| 🎯 **Intent parsing & task decomposition** — domains, entities, sub-questions | [agents/intent_parser.py](agents/intent_parser.py) |
-| 📚 **Agentic RAG** — dense retrieval with source-aware re-ranking, not naive top-k | [rag/retriever.py](rag/retriever.py) |
-| 🕸️ **Knowledge-graph grounding** — claims scored against typed facts with provenance | [graph/grounding.py](graph/grounding.py) |
-| 🔍 **LLM-as-critic self-verification** — an adversarial pass with deliberately restricted tools | [agents/critic_agent.py](agents/critic_agent.py) |
-| 📐 **Constrained decoding with repair loops** — Pydantic contracts, retry prompt, deterministic fallback | [guardrails/schemas.py](guardrails/schemas.py) |
-| 🚫 **False-premise detection** — refuses questions built on invented facts | [guardrails/policy.py](guardrails/policy.py) |
-| 🔒 **Capability-scoped agents** — a permission matrix enforced twice, tested to raise | [guardrails/permissions.py](guardrails/permissions.py) |
-| 📊 **Automated evaluation** — gold-answer harness scoring accuracy, grounding, latency, cost | [eval/harness.py](eval/harness.py) |
+|  **Multi-agent orchestration** — stateful graph, conditional routing, parallel fan-out | [agents/workflow.py](agents/workflow.py) |
+|  **Tool-calling over a standard protocol** — dynamic discovery, not hardcoded functions | [core/mcp_client.py](core/mcp_client.py) |
+|  **Intent parsing & task decomposition** — domains, entities, sub-questions | [agents/intent_parser.py](agents/intent_parser.py) |
+|  **Agentic RAG** — dense retrieval with source-aware re-ranking, not naive top-k | [rag/retriever.py](rag/retriever.py) |
+|  **Knowledge-graph grounding** — claims scored against typed facts with provenance | [graph/grounding.py](graph/grounding.py) |
+|  **LLM-as-critic self-verification** — an adversarial pass with deliberately restricted tools | [agents/critic_agent.py](agents/critic_agent.py) |
+|  **Constrained decoding with repair loops** — Pydantic contracts, retry prompt, deterministic fallback | [guardrails/schemas.py](guardrails/schemas.py) |
+|  **False-premise detection** — refuses questions built on invented facts | [guardrails/policy.py](guardrails/policy.py) |
+|  **Capability-scoped agents** — a permission matrix enforced twice, tested to raise | [guardrails/permissions.py](guardrails/permissions.py) |
+| **Automated evaluation** — gold-answer harness scoring accuracy, grounding, latency, cost | [eval/harness.py](eval/harness.py) |
 
 ---
 
@@ -128,12 +128,12 @@ Five layers. Data flows down, verified facts flow back up, and nothing skips a l
 
 ```mermaid
 flowchart TB
-    L1["🖥️ <b>INTERFACES</b><br/>FastAPI · Streamlit dashboard · CLI · eval harness"]
-    L2["🧠 <b>AGENTS</b> — LangGraph state machine<br/>intent parser → 4 domain agents in parallel → critic → orchestrator"]
-    L3["🛡️ <b>GUARDRAILS</b> — wrap every hop<br/>schemas · permissions · numeric audit · grounding · citations · budgets"]
-    L4["🕸️ <b>KNOWLEDGE GRAPH</b><br/>typed facts, each carrying source URL + MCP server + timestamp"]
-    L5["🔧 <b>MCP LAYER</b> — the only way out<br/>6 custom servers + 3 official, all over stdio"]
-    L6["🌐 <b>UPSTREAM</b><br/>NASA NeoWs · Exoplanet Archive · Open Notify · EONET · local Chroma · pure physics"]
+    L1[" <b>INTERFACES</b><br/>FastAPI · Streamlit dashboard · CLI · eval harness"]
+    L2[" <b>AGENTS</b> — LangGraph state machine<br/>intent parser → 4 domain agents in parallel → critic → orchestrator"]
+    L3[" <b>GUARDRAILS</b> — wrap every hop<br/>schemas · permissions · numeric audit · grounding · citations · budgets"]
+    L4[" <b>KNOWLEDGE GRAPH</b><br/>typed facts, each carrying source URL + MCP server + timestamp"]
+    L5[" <b>MCP LAYER</b> — the only way out<br/>6 custom servers + 3 official, all over stdio"]
+    L6[" <b>UPSTREAM</b><br/>NASA NeoWs · Exoplanet Archive · Open Notify · EONET · local Chroma · pure physics"]
 
     L1 <--> L2
     L2 <--> L3
@@ -257,12 +257,12 @@ Each is a standalone MCP server on the official Python SDK, launched over stdio,
 
 | Server | Tools | Upstream | API key |
 | --- | --- | --- | --- |
-| 🪨 `nasa_neo` | `neo_feed` · `neo_lookup` · `neo_browse` · `neo_hazardous_today` | NASA NeoWs | free key, or `DEMO_KEY` |
-| 🪐 `exoplanet` | `exoplanet_search` · `exoplanet_by_name` · `exoplanet_counts` · `exoplanet_habitable_candidates` | NASA Exoplanet Archive TAP | **none** |
-| 🛰️ `iss` | `iss_now` · `iss_crew` · `iss_ground_distance` · `iss_pass_geometry` | Open Notify | **none** |
-| 🌍 `eonet` | `eonet_events` · `eonet_categories` · `eonet_summary` | NASA EONET v3 | **none** |
-| 🧮 `astro_compute` | `impact_energy` · `torino_scale_band` · `convert_distance` · `orbital_period` · `equilibrium_temperature` · `habitable_zone` · `transit_depth` · `bulk_properties` | pure Python physics | **none** |
-| 📚 `rag` | `literature_search` · `literature_context` · `literature_stats` | local Chroma index | **none** |
+|  `nasa_neo` | `neo_feed` · `neo_lookup` · `neo_browse` · `neo_hazardous_today` | NASA NeoWs | free key, or `DEMO_KEY` |
+|  `exoplanet` | `exoplanet_search` · `exoplanet_by_name` · `exoplanet_counts` · `exoplanet_habitable_candidates` | NASA Exoplanet Archive TAP | **none** |
+|  `iss` | `iss_now` · `iss_crew` · `iss_ground_distance` · `iss_pass_geometry` | Open Notify | **none** |
+|  `eonet` | `eonet_events` · `eonet_categories` · `eonet_summary` | NASA EONET v3 | **none** |
+|  `astro_compute` | `impact_energy` · `torino_scale_band` · `convert_distance` · `orbital_period` · `equilibrium_temperature` · `habitable_zone` · `transit_depth` · `bulk_properties` | pure Python physics | **none** |
+|  `rag` | `literature_search` · `literature_context` · `literature_stats` | local Chroma index | **none** |
 
 Every tool returns the same shape, so provenance is never optional:
 
@@ -282,11 +282,11 @@ Every tool returns the same shape, so provenance is never optional:
 
 | Server | Package | Used for |
 | --- | --- | --- |
-| 📁 Filesystem | `@modelcontextprotocol/server-filesystem` | Orchestrator writes the run report + graph snapshot |
-| 🧠 Memory | `@modelcontextprotocol/server-memory` | Cross-session entity memory for the critic & orchestrator |
-| 🔎 Brave Search | `@modelcontextprotocol/server-brave-search` | Literature agent web fallback *(optional, needs a free key)* |
+|  Filesystem | `@modelcontextprotocol/server-filesystem` | Orchestrator writes the run report + graph snapshot |
+|  Memory | `@modelcontextprotocol/server-memory` | Cross-session entity memory for the critic & orchestrator |
+|  Brave Search | `@modelcontextprotocol/server-brave-search` | Literature agent web fallback *(optional, needs a free key)* |
 
-### 🔐 Agent → server permission matrix
+###  Agent → server permission matrix
 
 Enforced in `guardrails/permissions.py` — once when a plan is sanitised, and again at call time. An agent literally cannot name a server outside its column.
 
@@ -415,10 +415,10 @@ Two additional channels sit underneath:
 
 | Subsystem | Feeds | Via exactly one interface |
 | --- | --- | --- |
-| 🔧 **MCP layer** | the graph | the `{ok, source, data}` envelope — no other shape gets in |
-| 🕸️ **Knowledge graph** | the guardrails | `Fact` nodes with mandatory `source_url` + `mcp_server` |
-| 🛡️ **Guardrails** | the answer | numeric audit, grounding score, citation resolution |
-| 📊 **Harness** | the design | 17 gold answers that fail loudly when any of the above regresses |
+|  **MCP layer** | the graph | the `{ok, source, data}` envelope — no other shape gets in |
+|  **Knowledge graph** | the guardrails | `Fact` nodes with mandatory `source_url` + `mcp_server` |
+|  **Guardrails** | the answer | numeric audit, grounding score, citation resolution |
+|  **Harness** | the design | 17 gold answers that fail loudly when any of the above regresses |
 
 The loop closes at the harness. A regression in the retriever shows up as a drop in accuracy; a loosened numeric tolerance shows up as a non-zero hallucination rate; a broken permission check fails an integration test. **You cannot quietly weaken one layer without a number moving.**
 
@@ -446,13 +446,13 @@ Every number below comes from [eval/results/latest.json](eval/results/latest.jso
 
 | Metric | Value | Notes |
 | --- | --- | --- |
-| ✅ **Accuracy** | **94.1%** (16/17) | one failure, caused by an upstream rate limit — explained below |
-| 🎯 **Hallucination rate** | **0.0%** (0/17) | zero unverified numbers survived the numeric audit |
-| 🚫 **False-premise refusal rate** | **100%** (2/2) | both trap questions correctly refused |
-| ⏱️ **Mean latency** | **25.4 s** | p50 **21.0 s** · p95 **36.1 s** — dominated by cold process startup |
-| 💰 **Cost per query** | **$0.00000** | deterministic mode; free-tier APIs only |
-| 🔧 **MCP tool calls per query** | **5.35** | mean across the suite |
-| 🧪 **Test suite** | **68 passing** | unit + live MCP integration |
+|  **Accuracy** | **94.1%** (16/17) | one failure, caused by an upstream rate limit — explained below |
+|  **Hallucination rate** | **0.0%** (0/17) | zero unverified numbers survived the numeric audit |
+|  **False-premise refusal rate** | **100%** (2/2) | both trap questions correctly refused |
+|  **Mean latency** | **25.4 s** | p50 **21.0 s** · p95 **36.1 s** — dominated by cold process startup |
+|  **Cost per query** | **$0.00000** | deterministic mode; free-tier APIs only |
+|  **MCP tool calls per query** | **5.35** | mean across the suite |
+|  **Test suite** | **68 passing** | unit + live MCP integration |
 
 ### Accuracy by question type
 
@@ -478,7 +478,7 @@ Every number below comes from [eval/results/latest.json](eval/results/latest.jso
 | `filesystem` | 17 | 17 | 0 | **100%** |
 | `iss` | 3 | 3 | 0 | **100%** |
 | `memory` | 34 | 34 | 0 | **100%** |
-| `nasa_neo` | 6 | 0 | 6 | 0.0% ⚠️ |
+| `nasa_neo` | 6 | 0 | 6 | 0.0%  |
 | `rag` | 8 | 8 | 0 | **100%** |
 
 >  **About that `nasa_neo` row — this is the honest version.** The benchmark was run with NASA's shared `DEMO_KEY`, which is rate-limited to ~30 requests/hour **per IP**. Every NeoWs call returned `HTTP 429`. Here's the part I actually care about: **the pipeline did not hallucinate its way around the outage.** `q06_neo_today` returned a low-confidence non-answer instead of inventing asteroid names, and `q07_apophis` was still answered correctly because the intent parser also routes risk questions to the RAG corpus. A [free NASA key](https://api.nasa.gov) (30 seconds, no credit card) in `.env` turns this row green.
@@ -522,11 +522,11 @@ Latency is dominated by **MCP process startup** — every server is spawned fres
 | q13 | Confirmed planets within 10 pc smaller than 2 R⊕? | live | ✅ | 14.5 s |
 | q14 | Explain the transit method and transit depth. | factual | ✅ | 34.9 s |
 | q15 | How many light-years is one parsec? | computed | ✅ | 34.3 s |
-| q16 | Summarise the 2031 Vera Rubin discovery of Kepler-9999 c. | 🪤 trap | ✅ refused | 18.3 s |
-| q17 | How many PHAs did JWST discover in 2024? | 🪤 trap | ✅ refused | 36.1 s |
+| q16 | Summarise the 2031 Vera Rubin discovery of Kepler-9999 c. |  trap | ✅ refused | 18.3 s |
+| q17 | How many PHAs did JWST discover in 2024? |  trap | ✅ refused | 36.1 s |
 
 <details>
-<summary><b>📉 What the numbers looked like before the last round of fixes</b> (click to expand)</summary>
+<summary><b> What the numbers looked like before the last round of fixes</b> (click to expand)</summary>
 
 <br/>
 
