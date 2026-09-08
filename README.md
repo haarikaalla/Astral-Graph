@@ -2,9 +2,9 @@
 
 # 🛰️ AstralGraph
 
-### An AI Space & Astronomy Research Assistant where **every single fact travels through MCP**
+### An AI research assistant that cannot make up a number
 
-*Six specialist agents. Nine MCP servers. A knowledge graph that refuses to let the model make things up.*
+*Seven agents passing typed contracts. Nine MCP servers. A provenance knowledge graph. A 17-question harness that fails loudly when any of it regresses.*
 
 <br/>
 
@@ -12,36 +12,78 @@
 [![MCP](https://img.shields.io/badge/MCP-1.x%20%26%202.x-4cc9f0)](https://modelcontextprotocol.io)
 [![LangGraph](https://img.shields.io/badge/LangGraph-multi--agent-57cc99)](https://langchain-ai.github.io/langgraph/)
 [![Claude](https://img.shields.io/badge/Claude-optional-d4a373?logo=anthropic&logoColor=white)](https://anthropic.com)
-[![Accuracy](https://img.shields.io/badge/benchmark%20accuracy-94.1%25-57cc99)](#-results)
-[![Hallucination](https://img.shields.io/badge/hallucination%20rate-0.0%25-4cc9f0)](#-results)
+[![Accuracy](https://img.shields.io/badge/accuracy-94.1%25-57cc99)](#-results)
+[![Hallucination](https://img.shields.io/badge/hallucination-0.0%25-4cc9f0)](#-results)
 [![Tests](https://img.shields.io/badge/tests-68%20passing-57cc99)](#-testing)
-[![Cost](https://img.shields.io/badge/cost-%240.00%20free%20tier-ffd166)](#-cost)
+[![Cost](https://img.shields.io/badge/cost-%240.00-ffd166)](#-what-it-costs)
 
-<br/>
+</div>
 
-![AstralGraph pipeline](docs/images/pipeline.gif)
+```mermaid
+flowchart LR
+    Q["❓<br/><b>Question</b>"] --> P["🧠<br/><b>PLAN</b><br/>intent parser<br/><i>no tools</i>"]
+    P --> F["🔧<br/><b>FETCH</b><br/>agents call<br/>MCP servers"]
+    F --> R["🕸️<br/><b>RECORD</b><br/>facts + provenance<br/>into the graph"]
+    R --> V["🔍<br/><b>VERIFY</b><br/>critic re-checks<br/>every number"]
+    V --> A["✅<br/><b>ANSWER</b><br/>with citations<br/>or an honest refusal"]
+    V -.->|"ungrounded —<br/>try again"| P
+    A --> S["📊<br/><b>SCORE</b><br/>17-question<br/>harness"]
+
+    classDef step fill:#141a38,stroke:#4cc9f0,color:#e8ecff
+    classDef ends fill:#12203a,stroke:#57cc99,color:#e8ecff
+    class P,F,R,V step
+    class Q,A,S ends
+```
+
+<div align="center">
+
+**Plan → Fetch → Record → Verify → Answer → Score.**<br/>
+*Every number in the answer must survive step 4, or it never reaches you.*
 
 </div>
 
 ---
 
-## 📖 The one-paragraph version
+## 📖 What this actually is
 
-Ask AstralGraph *"How far is the ISS from London right now?"* and it does **not** call an API. It spawns an MCP server over stdio, negotiates a tool list, calls `iss.iss_now`, writes the result into a knowledge graph with its source URL and timestamp, has a **critic agent** re-check every digit in the draft answer against that graph, and only then answers you — with citations. If a number in the draft can't be traced back to a tool result, the answer gets rewritten. If you ask about an exoplanet that doesn't exist, it says so instead of inventing a discovery.
+Ask most AI assistants *"How far is the ISS from London right now?"* and you get a fluent paragraph. Somewhere inside it is a number. You have no way to know whether that number came from a satellite or from the model's imagination.
+
+AstralGraph is built so that question can always be answered.
+
+Here is what happens when you ask it something:
+
+1. An **intent parser** reads your question and decides which domains it touches. It has **zero tool access** — the component that decides *what to do* is never the component that *can do it*.
+2. **Domain agents** fan out in parallel. Each one opens an MCP session over stdio, lists the available tools, and calls one. No agent is allowed to import `httpx` and hit NASA directly.
+3. Every result lands in a **knowledge graph** as a typed `Fact` carrying its source name, source URL, the MCP server and tool that produced it, and a UTC timestamp.
+4. A **critic agent** re-checks every digit in the draft answer against that graph — and it deliberately *cannot see* the servers that produced the claim, so a bad read can't validate itself.
+5. The **orchestrator** synthesises the final answer, attaches citations, and sends the whole thing back for revision if the grounding score is too low.
+
+If a number in the draft can't be traced back to a tool result, the answer gets rewritten. If you ask about an exoplanet that doesn't exist, it tells you so instead of inventing a discovery.
 
 That last part isn't a nice-to-have. It's the whole point.
 
+> Four subsystems — multi-agent orchestration, MCP tooling, a provenance graph, and an evaluation harness — and each one is the *input* to the next. If you only read one section, read [How the four systems connect](#-how-the-four-systems-connect).
+
 ---
 
-## ✨ Why this project exists
+## 🌍 Is this useful outside astronomy?
 
-Most "AI research assistants" are a prompt, a search API, and a lot of hope. The failure mode is always the same: the model produces a fluent paragraph containing three real numbers and one confident fabrication, and you can't tell which is which.
+Yes — and honestly, the space data is the least interesting part.
 
-AstralGraph attacks that from four directions at once:
+What's reusable is the **verification architecture**. Swap the six domain servers for your own and the guardrail stack, the provenance graph, the critic loop, and the benchmark harness all still work unchanged. The same pattern applies directly to:
+
+- **Finance** — every figure in a summary must trace back to a filing or a pricing feed
+- **Healthcare** — dosages and interactions must come from a reference database, never from a language model
+- **Legal & compliance** — citations must resolve to real documents, and fabricated case law is a career-ending failure mode
+- **Internal enterprise search** — an honest "I don't have that" beats a confident guess every time
+
+Astronomy was chosen because it has three rare properties at once: free public APIs, verifiable ground truth, and numbers that are easy to get catastrophically wrong. It's a good place to prove the mechanism.
+
+The four problems it's actually solving:
 
 | Problem | What AstralGraph does |
 | --- | --- |
-| 🔌 Tools are glued in ad-hoc | **Everything** is an MCP server — custom ones I wrote, plus official pre-built ones. Agents are pure MCP clients. |
+| 🔌 Tools are glued in ad-hoc | **Everything** is an MCP server — six custom ones plus three official pre-built ones. Agents are pure MCP clients. |
 | 🎲 The model invents numbers | Numbers are computed in **Python**, stored in a graph with provenance, and **audited digit-by-digit** before the answer ships. |
 | 🕵️ You can't tell where a claim came from | Every fact carries `{source name, URL, retrieved_at, mcp_server, tool}`. Citations are validated against the graph. |
 | 🧨 The model answers false-premise questions | Trap questions are detected and refused. **100% refusal rate** on the benchmark. |
@@ -49,6 +91,43 @@ AstralGraph attacks that from four directions at once:
 ---
 
 ## 🏗️ Architecture
+
+### The stack, top to bottom
+
+Five layers. Data flows down, verified facts flow back up, and nothing skips a layer.
+
+```mermaid
+flowchart TB
+    L1["🖥️ <b>INTERFACES</b><br/>FastAPI · Streamlit dashboard · CLI · eval harness"]
+    L2["🧠 <b>AGENTS</b> — LangGraph state machine<br/>intent parser → 4 domain agents in parallel → critic → orchestrator"]
+    L3["🛡️ <b>GUARDRAILS</b> — wrap every hop<br/>schemas · permissions · numeric audit · grounding · citations · budgets"]
+    L4["🕸️ <b>KNOWLEDGE GRAPH</b><br/>typed facts, each carrying source URL + MCP server + timestamp"]
+    L5["🔧 <b>MCP LAYER</b> — the only way out<br/>6 custom servers + 3 official, all over stdio"]
+    L6["🌐 <b>UPSTREAM</b><br/>NASA NeoWs · Exoplanet Archive · Open Notify · EONET · local Chroma · pure physics"]
+
+    L1 <--> L2
+    L2 <--> L3
+    L3 <--> L4
+    L4 <--> L5
+    L5 <--> L6
+
+    classDef ui fill:#241a33,stroke:#c77dff,color:#e8ecff
+    classDef ag fill:#141a38,stroke:#4cc9f0,color:#e8ecff
+    classDef gd fill:#33261a,stroke:#ffd166,color:#e8ecff
+    classDef kg fill:#1a2b1f,stroke:#57cc99,color:#e8ecff
+    classDef mc fill:#12203a,stroke:#57cc99,color:#e8ecff
+    classDef up fill:#2a1a1a,stroke:#f4978e,color:#e8ecff
+    class L1 ui
+    class L2 ag
+    class L3 gd
+    class L4 kg
+    class L5 mc
+    class L6 up
+```
+
+The important thing to notice: **layer 5 is the only exit.** There is no arrow from agents to the internet. If an agent wants a fact, it goes down through the guardrails, through the graph, and out through MCP — or it doesn't get the fact.
+
+### The full picture
 
 ```mermaid
 flowchart TB
@@ -121,20 +200,39 @@ flowchart TB
 
 ---
 
+## 🧱 Tech stack
+
+| Layer | Choice | Why this one |
+| --- | --- | --- |
+| **Tool protocol** | `mcp` (official Python SDK), stdio transport | Every capability is a separately-spawned process with a negotiated tool list. Swappable, sandboxable, inspectable. |
+| **Agent orchestration** | LangGraph + LangChain Core | An explicit state machine with parallel fan-out — not a `while` loop pretending to be an agent. |
+| **LLM** | Anthropic Claude *(optional)* | Used only for intent parsing and synthesis. Every call has a deterministic fallback, so the app runs fully without a key. |
+| **Validation** | Pydantic v2 + pydantic-settings | Every agent hand-off is a typed model. Bad JSON triggers a repair prompt, then a deterministic fallback. |
+| **Knowledge graph** | NetworkX in-process, optional Neo4j | 13 node types, 12 relation types, `Fact` objects carrying full provenance. Neo4j only engages if `NEO4J_URI` is set. |
+| **Retrieval** | ChromaDB + `all-MiniLM-L6-v2` | Local embeddings. No API key, no per-query cost, works offline. |
+| **Corpus** | arXiv `astro-ph` Atom feed + HuggingFace `UniverseTBD/arxiv-qa-astro-ph` | Free, real, and large enough to be interesting (852 chunks). |
+| **API** | FastAPI + Uvicorn | Async-native, matches the async MCP client. |
+| **Dashboard** | Streamlit + Plotly + NetworkX | Renders the live knowledge graph and per-guardrail pass/fail chips. |
+| **Observability** | structlog + Langfuse *(optional)* | Structured JSONL traces land in `storage/logs/` either way. |
+| **Testing** | pytest + pytest-asyncio | 68 tests, including live MCP round-trips. |
+| **Packaging** | Docker + docker-compose | API and dashboard come up together. |
+
+---
+
 ## 🔧 The MCP layer
 
-### Custom servers I built (`/mcp_servers`)
+### Custom servers built from scratch (`/mcp_servers`)
 
-Each is a standalone MCP server using the official Python SDK, launched over stdio, with retries, timeouts, and a uniform response envelope.
+Each is a standalone MCP server on the official Python SDK, launched over stdio, with retries, timeouts, and a uniform response envelope.
 
-| Server | Tools | Upstream | Key |
+| Server | Tools | Upstream | API key |
 | --- | --- | --- | --- |
-| 🪨 `nasa_neo` | `neo_feed` · `neo_lookup` · `neo_browse` · `neo_hazardous_today` | NASA NeoWs | free key (or `DEMO_KEY`) |
-| 🪐 `exoplanet` | `exoplanet_search` · `exoplanet_by_name` · `exoplanet_counts` · `exoplanet_habitable_candidates` | NASA Exoplanet Archive TAP | none |
-| 🛰️ `iss` | `iss_now` · `iss_crew` · `iss_ground_distance` · `iss_pass_geometry` | Open Notify | none |
-| 🌍 `eonet` | `eonet_events` · `eonet_categories` · `eonet_summary` | NASA EONET | none |
-| 🧮 `astro_compute` | `impact_energy` · `torino_scale_band` · `convert_distance` · `orbital_period` · `equilibrium_temperature` · `habitable_zone` · `transit_depth` · `bulk_properties` | pure Python physics | none |
-| 📚 `rag` | `literature_search` · `literature_context` · `literature_stats` | local Chroma index | none |
+| 🪨 `nasa_neo` | `neo_feed` · `neo_lookup` · `neo_browse` · `neo_hazardous_today` | NASA NeoWs | free key, or `DEMO_KEY` |
+| 🪐 `exoplanet` | `exoplanet_search` · `exoplanet_by_name` · `exoplanet_counts` · `exoplanet_habitable_candidates` | NASA Exoplanet Archive TAP | **none** |
+| 🛰️ `iss` | `iss_now` · `iss_crew` · `iss_ground_distance` · `iss_pass_geometry` | Open Notify | **none** |
+| 🌍 `eonet` | `eonet_events` · `eonet_categories` · `eonet_summary` | NASA EONET v3 | **none** |
+| 🧮 `astro_compute` | `impact_energy` · `torino_scale_band` · `convert_distance` · `orbital_period` · `equilibrium_temperature` · `habitable_zone` · `transit_depth` · `bulk_properties` | pure Python physics | **none** |
+| 📚 `rag` | `literature_search` · `literature_context` · `literature_stats` | local Chroma index | **none** |
 
 Every tool returns the same shape, so provenance is never optional:
 
@@ -172,13 +270,42 @@ Enforced in `guardrails/permissions.py` — once when a plan is sanitised, and a
 | Critic Agent | – | – | – | – | ✅ | – | – | – | ✅ |
 | Orchestrator | – | – | – | – | – | – | – | ✅ | ✅ |
 
-The Intent Parser having an **empty row** is deliberate: the component that decides *what to do* is never the component that *can do it*.
+The Intent Parser's empty row is deliberate, and so is the Critic's. The component that decides *what to do* is never the one that *can do it* — and the critic can reach `astro_compute` but **not** the servers that produced the original claim, so it has to re-derive numbers independently.
+
+---
+
+## 🕸️ The knowledge graph
+
+This isn't a diagram. It's a live data structure, rebuilt per query and persisted to `workspace_data/graphs/`.
+
+**Node types:** `Question` · `Asteroid` · `Planet` · `Star` · `Spacecraft` · `EarthEvent` · `Location` · `Document` · `Source` · `Fact` · `Claim` · `Agent` · `Computation`
+
+**Relations:** `HAS_FACT` · `SOURCED_FROM` · `PRODUCED_BY` · `ABOUT` · `SUPPORTS` · `CONTRADICTS` · `ORBITS` · `HOSTS` · `LOCATED_AT` · `CITES` · `ANSWERS` · `DERIVED_FROM`
+
+The atomic unit is a `Fact`, and its field list is the reason the whole thing works:
+
+```python
+class Fact(BaseModel):
+    subject: str          # "Apophis"
+    predicate: str        # "close_approach_distance"
+    value: Any            # 31600
+    unit: str | None      # "km"
+    source_name: str      # "NASA NeoWs"
+    source_url: str       # "https://api.nasa.gov/neo/rest/v1/neo/2099942"
+    mcp_server: str       # "nasa_neo"
+    mcp_tool: str         # "neo_lookup"
+    retrieved_at: str     # "2026-09-07T14:18:04+00:00"
+    confidence: float
+    agent: str            # "neo_agent"
+```
+
+You cannot write a fact into this graph without saying where it came from. That single constraint is what makes the numeric audit and citation validation possible downstream — a citation is only valid if it resolves to a node with a real `source_url`.
+
+A typical run produces roughly **24 nodes and 116 edges**, rendered interactively in the dashboard.
 
 ---
 
 ## 🛡️ Guardrails
-
-![Guardrail in action](docs/images/guardrail.gif)
 
 Six independent layers. None of them trust the model.
 
@@ -197,10 +324,87 @@ Six independent layers. None of them trust the model.
 **6 · Budgets** — hard caps on MCP calls per session (24), tokens, retries per agent, and per-call timeouts. Exceeding a budget degrades gracefully to a partial, honest answer.
 
 ---
+## 🔗 How the four systems connect
 
+Multi-agent, knowledge graph, MCP, evaluation harness — plenty of projects have one of these bolted on. The reason this one works is that **each subsystem is the input to the next**, with exactly one seam between them. Nothing is decorative.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant IP as Intent Parser
+    participant DA as Domain Agents<br/>(parallel)
+    participant M as MCP servers
+    participant KG as Knowledge Graph
+    participant C as Critic
+    participant O as Orchestrator
+    participant H as Eval Harness
+
+    U->>IP: question
+    IP->>IP: no tools available
+    IP-->>DA: Intent (typed) — domains, entities, sub-questions
+    DA->>M: list_tools() → call_tool() over stdio
+    M-->>DA: {ok, source{name,url,retrieved_at}, data}
+    DA->>KG: write Fact(subject, predicate, value, provenance)
+    DA-->>C: AgentFinding[] merged via operator.add
+    C->>M: astro_compute — re-derive numbers independently
+    C->>KG: read facts, compare digit by digit
+    C-->>O: CriticVerdict — verified / disputed / unsupported
+    O->>KG: grounding score + citation resolution
+    alt grounded
+        O-->>U: FinalAnswer + citations + guardrail report
+    else below threshold
+        O->>O: revise and re-check
+    end
+    O->>H: trace, server_stats, latency, cost
+    H->>H: score vs 17 gold answers
+```
+
+### Agent-to-agent communication
+
+Agents never pass free-form text to each other. **Every hand-off is a validated Pydantic contract**, merged into a shared LangGraph state through explicit reducers ([agents/state.py](agents/state.py)):
+
+| Hand-off | Contract | How it merges |
+| --- | --- | --- |
+| Intent Parser → domain agents | `Intent` | Written once, then read-only |
+| Domain agent → Critic | `AgentFinding` | `Annotated[list, operator.add]` — parallel branches append without clobbering |
+| Any agent → guardrails | guardrail report dict | `_merge_dicts` reducer |
+| Critic → Orchestrator | `CriticVerdict` | Single writer |
+| Orchestrator → user | `FinalAnswer` | Single writer |
+
+That choice matters more than it looks. Because the merge rule is declared in the type (`operator.add` on `findings`), the four domain agents can run **genuinely in parallel** and their results combine deterministically. There's no lock, no ordering assumption, and no "agent 3 overwrote agent 1's output" class of bug.
+
+Two additional channels sit underneath:
+
+- **The knowledge graph is a shared blackboard.** Agents don't message each other about facts — they write `Fact` nodes and the critic reads them. Producer and consumer are decoupled, so adding a seventh agent requires changing nothing about the existing six.
+- **The official `memory` MCP server carries entities across sessions**, which is why the critic and orchestrator both have it in their permission row.
+
+> **Naming honesty:** this is agent-to-agent communication via typed contracts and a shared blackboard. It is **not** an implementation of Google's A2A protocol — there's no agent card, no HTTP task endpoint, no cross-organisation discovery. Everything runs in one process over LangGraph state. Calling it "A2A" would be borrowing credibility the code hasn't earned. What it *does* have is stricter than free-text messaging: a malformed hand-off fails Pydantic validation at the boundary instead of silently corrupting a downstream prompt.
+
+### The four seams
+
+| Subsystem | Feeds | Via exactly one interface |
+| --- | --- | --- |
+| 🔧 **MCP layer** | the graph | the `{ok, source, data}` envelope — no other shape gets in |
+| 🕸️ **Knowledge graph** | the guardrails | `Fact` nodes with mandatory `source_url` + `mcp_server` |
+| 🛡️ **Guardrails** | the answer | numeric audit, grounding score, citation resolution |
+| 📊 **Harness** | the design | 17 gold answers that fail loudly when any of the above regresses |
+
+The loop closes at the harness. A regression in the retriever shows up as a drop in accuracy; a loosened numeric tolerance shows up as a non-zero hallucination rate; a broken permission check fails an integration test. **You cannot quietly weaken one layer without a number moving.**
+
+### Why this holds up as an engineering project
+
+- **The constraint is enforced, not documented.** "Agents may only use MCP" is checked twice in code and asserted by tests that require the denials to *raise*. A rule you can't violate is architecture; a rule in a README is a wish.
+- **It fails correctly.** The one benchmark failure came from a real upstream outage, and the system returned a low-confidence non-answer rather than inventing asteroid names. Graceful degradation was measured, not hoped for.
+- **The bugs are documented with their fixes.** The numeric-rescaling false-positive, the retrieval regression from *adding* data, the "looked-up parameters beat user-stated parameters" bug — each has a root cause, a fix, and a regression test.
+- **Every claim in this README is reproducible.** `python -m eval.harness` regenerates the table; `python scripts/make_visuals.py` regenerates the charts; `pytest -q` runs all 68 tests. No screenshots of a good day.
+
+---
 ## 📊 Results
 
-**17 fixed questions with known-correct facts**, spanning live-data lookups, static facts, pure computations, and deliberate false-premise traps. Every number below comes from `eval/results/latest.json` — regenerate the charts any time with `python scripts/make_visuals.py`.
+The project ships a real evaluation harness — [eval/harness.py](eval/harness.py) — that runs **17 fixed questions with known-correct answers** through the complete pipeline: live-data lookups, static facts, pure computations, and two deliberate false-premise traps. It scores accuracy, hallucination rate, refusal rate, latency percentiles, USD cost, and per-MCP-server call success.
+
+Every number below comes from [eval/results/latest.json](eval/results/latest.json). Regenerate the charts any time with `python scripts/make_visuals.py`.
 
 <div align="center">
 
@@ -212,10 +416,10 @@ Six independent layers. None of them trust the model.
 
 | Metric | Value | Notes |
 | --- | --- | --- |
-| ✅ **Accuracy** | **94.1%** (16/17) | one failure, caused by an upstream rate limit — see below |
+| ✅ **Accuracy** | **94.1%** (16/17) | one failure, caused by an upstream rate limit — explained below |
 | 🎯 **Hallucination rate** | **0.0%** (0/17) | zero unverified numbers survived the numeric audit |
 | 🚫 **False-premise refusal rate** | **100%** (2/2) | both trap questions correctly refused |
-| ⏱️ **Mean latency** | **25.4 s** | p50 **21.0 s** · p95 **36.1 s** |
+| ⏱️ **Mean latency** | **25.4 s** | p50 **21.0 s** · p95 **36.1 s** — dominated by cold process startup |
 | 💰 **Cost per query** | **$0.00000** | deterministic mode; free-tier APIs only |
 | 🔧 **MCP tool calls per query** | **5.35** | mean across the suite |
 | 🧪 **Test suite** | **68 passing** | unit + live MCP integration |
@@ -342,13 +546,13 @@ cp .env.example .env
 ```
 
 ```dotenv
-# All optional — every one has a working free/offline fallback
-ANTHROPIC_API_KEY=          # unset -> deterministic synthesis, $0.00
-NASA_API_KEY=DEMO_KEY       # https://api.nasa.gov — free, 30s, fixes the nasa_neo row
-BRAVE_API_KEY=              # https://brave.com/search/api — free tier
-MODEL=claude-sonnet-4-5
-MAX_TOOL_CALLS_PER_SESSION=24
-GROUNDING_THRESHOLD=0.60
+# Every one of these is optional and has a working free/offline fallback
+ANTHROPIC_API_KEY=                  # unset -> deterministic synthesis, $0.00
+NASA_API_KEY=DEMO_KEY               # https://api.nasa.gov — free, 30s, turns the nasa_neo row green
+BRAVE_API_KEY=                      # https://brave.com/search/api — free tier
+ASTRAL_MODEL=claude-sonnet-4-20250514
+ASTRAL_MAX_TOOL_CALLS_PER_SESSION=24
+ASTRAL_GROUNDING_THRESHOLD=0.60
 ```
 
 ### Verify the MCP layer first
@@ -375,7 +579,15 @@ python scripts/smoke_mcp.py
 python -m rag.ingest --seed --arxiv 300 --hf 250
 ```
 
-Produces **852 chunks** — 30 curated reference passages, 572 live arXiv `astro-ph` abstracts, and 250 rows from `UniverseTBD/arxiv-qa-astro-ph` — embedded with `all-MiniLM-L6-v2` into Chroma. Fully local, no API key.
+Produces **852 chunks**, embedded with `all-MiniLM-L6-v2` into Chroma. Fully local, no API key, no per-query cost:
+
+| Source | Chunks | Notes |
+| --- | ---: | --- |
+| arXiv `astro-ph` (Atom export API) | 572 | Live fetch across `.EP` `.IM` `.SR` `.GA` `.HE` — no key required |
+| HuggingFace `UniverseTBD/arxiv-qa-astro-ph` | 250 | Loaded anonymously via `datasets` |
+| Curated seed corpus | 30 | NASA CNEOS, IAU, NASA Exoplanet Archive, Kopparapu et al. 2013, Collins/Melosh/Marcus 2005 — bundled in [rag/seed_corpus.py](rag/seed_corpus.py) |
+
+The HuggingFace loader tries three datasets in order and takes the first that resolves. **No Kaggle**, deliberately — Kaggle requires account credentials, which would break the "clone and run with zero keys" property. Every stage degrades gracefully: `python -m rag.ingest --seed` alone gives you a working offline corpus, which is what the test suite runs against.
 
 ### Run it
 
@@ -423,6 +635,18 @@ curl -X POST http://localhost:8000/ask \
 </details>
 
 Other endpoints: `GET /health` · `GET /servers` (live MCP status) · `GET /graph/{run_id}` · `GET /eval/latest`.
+
+### Run the benchmark yourself
+
+```bash
+python -m eval.harness                    # all 17 questions
+python -m eval.harness --only q08 q15     # a subset, by id prefix
+python -m eval.harness --concurrency 3    # 3 questions at a time
+python -m eval.harness --repeat 2         # average over 2 runs
+python scripts/make_visuals.py            # regenerate the charts above
+```
+
+Results land in `eval/results/` as timestamped JSON + Markdown, with `latest.json` always pointing at the most recent run.
 
 ---
 
@@ -481,6 +705,27 @@ astralgraph/
 
 ---
 
+## 💵 What it costs
+
+Nothing. That's not a marketing line — it's a design constraint, and it's what made the benchmark reproducible.
+
+| Component | Key needed | Cost |
+| --- | --- | --- |
+| NASA NeoWs | Free key from [api.nasa.gov](https://api.nasa.gov), or the shared `DEMO_KEY` | $0 |
+| NASA Exoplanet Archive (TAP) | None | $0 |
+| Open Notify (ISS position & crew) | None | $0 |
+| NASA EONET v3 | None | $0 |
+| `astro_compute` | None — pure Python, no network | $0 |
+| Embeddings (`all-MiniLM-L6-v2`) | None — runs locally on CPU | $0 |
+| Vector store (Chroma) | None — local SQLite file | $0 |
+| Brave Search | Free-tier key, **optional** | $0 |
+| Claude | **Optional.** Without a key the pipeline uses deterministic synthesis. | $0 |
+| **Full benchmark run (17 questions)** | | **$0.00** |
+
+Add an Anthropic key and the answers become noticeably better *prose* — but the *facts* don't change, because the facts never came from the model in the first place.
+
+---
+
 ## 🧭 Design decisions worth defending
 
 **MCP everywhere, even where it's inconvenient.** `astro_compute` has no network calls — it's pure arithmetic. It would be simpler as a Python import. Making it an MCP server means physics results get the same provenance envelope, permission scoping, and audit trail as NASA data, and the critic can independently re-verify a number through the exact same interface the agent used to produce it.
@@ -495,9 +740,10 @@ astralgraph/
 
 ## ⚠️ Known limitations
 
-- **Cold-start latency** dominates the numbers above — MCP servers are spawned per run and the RAG server loads an embedding model. Persistent sessions would cut mean latency substantially.
+- **Cold-start latency** dominates every number above — MCP servers are spawned per run and the RAG server loads an embedding model from disk each time. Persistent sessions would cut mean latency substantially; this is the single biggest open improvement.
 - **`DEMO_KEY` rate limits** make NeoWs results non-deterministic across back-to-back runs. Use a free NASA key.
 - **The grounded-answer rate (11.8%) looks low** and honestly is: in deterministic mode answers are terse fact listings, which the claim-decomposer scores conservatively. With `ANTHROPIC_API_KEY` set, prose answers score far higher. Hallucination rate is the metric that matters here, and it's zero either way.
+- **Single-turn only.** There's cross-session entity memory via the Memory server, but no conversational follow-up handling yet.
 - **Brave Search is optional** and off by default; the literature agent works purely from the local index without it.
 
 ## 🗺️ Roadmap
