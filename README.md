@@ -793,7 +793,5 @@ Data from [NASA Open APIs](https://api.nasa.gov), the [NASA Exoplanet Archive](h
 <div align="center">
 <br/>
 
-**Built to be checked, not just believed.**
-
 <br/>
 </div>
