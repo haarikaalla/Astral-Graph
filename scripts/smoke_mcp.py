@@ -25,6 +25,10 @@ PROBES: list[tuple[str, str, dict]] = [
     ("nasa_neo", "neo_feed", {}),
     ("exoplanet", "exoplanet_counts", {}),
     ("rag", "literature_stats", {}),
+    ("jpl_sbdb", "sbdb_lookup", {"designation": "Apophis"}),
+    ("jpl_sbdb", "close_approaches", {"days": 7}),
+    ("space_weather", "space_weather_now", {}),
+    ("launch", "upcoming_launches", {"limit": 5}),
 ]
 
 AGENT_FOR = {
@@ -32,6 +36,9 @@ AGENT_FOR = {
     "iss": "events_agent",
     "eonet": "events_agent",
     "nasa_neo": "neo_agent",
+    "jpl_sbdb": "neo_agent",
+    "space_weather": "events_agent",
+    "launch": "events_agent",
     "exoplanet": "exoplanet_agent",
     "rag": "literature_agent",
 }

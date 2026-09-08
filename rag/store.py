@@ -59,12 +59,36 @@ class VectorStore:
             self._collection = self._chroma.get_or_create_collection(
                 name=self.collection_name, metadata={"hnsw:space": "cosine"}
             )
+            stored_dim = self._stored_dimension()
+            if stored_dim is not None and stored_dim != self.embedder.dimension:
+                # The index was built by a different embedder. Querying it would
+                # raise deep inside Chroma on every call, so degrade openly here
+                # instead of failing opaquely later.
+                raise RuntimeError(
+                    f"index embedding dimension {stored_dim} does not match active "
+                    f"embedder dimension {self.embedder.dimension}; "
+                    f"re-run `python -m rag.ingest` to rebuild it"
+                )
             self.backend = "chroma"
         except Exception as exc:  # noqa: BLE001
+            self._chroma = None
+            self._collection = None
             self.backend = "json-cosine"
             self._load_fallback()
             log_event(log, "chroma_unavailable", error=str(exc)[:200], backend=self.backend)
         log_event(log, "vector_store_ready", backend=self.backend, count=self.count())
+
+    def _stored_dimension(self) -> int | None:
+        """Dimension of vectors already persisted, or ``None`` if the index is empty."""
+        try:
+            if self._collection.count() == 0:
+                return None
+            vectors = self._collection.peek(limit=1).get("embeddings")
+            if vectors is None or len(vectors) == 0:
+                return None
+            return len(vectors[0])
+        except Exception:  # noqa: BLE001
+            return None
 
     def _load_fallback(self) -> None:
         if self._fallback_path.exists():

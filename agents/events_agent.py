@@ -49,7 +49,7 @@ CATEGORY_WORDS = {
 
 class EventsAgent(BaseAgent):
     name = "events_agent"
-    role = "ISS & Earth Events Agent (Open Notify + NASA EONET)"
+    role = "ISS, Earth events, space weather & launch agent"
     max_calls = 4
 
     def heuristic_plan(self, intent: Intent) -> list[ToolCall]:
@@ -61,6 +61,41 @@ class EventsAgent(BaseAgent):
         wants_events = any(w in question for w in CATEGORY_WORDS) or any(
             w in question for w in ("eonet", "natural event", "disaster", "event")
         )
+        wants_weather = any(w in question for w in (
+            "solar flare", "flare", "cme", "coronal mass", "geomagnetic", "solar storm",
+            "space weather", "aurora", "kp index", "sunspot", "solar activity",
+        ))
+        wants_launch = any(w in question for w in (
+            "launch", "rocket", "liftoff", "lift-off", "falcon", "starship", "ariane",
+            "soyuz", "next flight",
+        ))
+
+        if wants_weather:
+            if any(w in question for w in ("now", "current", "today", "right now", "aurora")):
+                calls.append(ToolCall(server="space_weather", tool="space_weather_now",
+                                      rationale="live planetary K-index, no API key needed"))
+            if any(w in question for w in ("flare", "solar activity", "sunspot")):
+                calls.append(ToolCall(server="space_weather", tool="solar_flares",
+                                      arguments={"days": 7}, rationale="recent solar flares"))
+            if any(w in question for w in ("cme", "coronal mass")):
+                calls.append(ToolCall(server="space_weather", tool="coronal_mass_ejections",
+                                      arguments={"days": 7}, rationale="recent CMEs"))
+            if any(w in question for w in ("geomagnetic", "storm", "aurora")):
+                calls.append(ToolCall(server="space_weather", tool="geomagnetic_storms",
+                                      arguments={"days": 30},
+                                      rationale="recent geomagnetic storms"))
+
+        if wants_launch:
+            if any(w in question for w in ("next", "upcoming", "scheduled", "when is")):
+                calls.append(ToolCall(server="launch", tool="upcoming_launches",
+                                      arguments={"limit": 10}, rationale="next launches"))
+            elif any(w in question for w in ("how many", "rate", "statistics", "busiest",
+                                             "success")):
+                calls.append(ToolCall(server="launch", tool="launch_stats",
+                                      arguments={"sample": 40}, rationale="launch activity"))
+            else:
+                calls.append(ToolCall(server="launch", tool="recent_launches",
+                                      arguments={"limit": 10}, rationale="recent launches"))
 
         if wants_iss:
             if any(w in question for w in ("who", "crew", "astronaut", "people in space",

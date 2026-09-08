@@ -53,5 +53,7 @@ class AstralState(TypedDict, total=False):
     guardrail_reports: Annotated[dict[str, Any], _merge_dicts]
 
     critic: dict[str, Any]
+    evidence_requests: list[dict[str, Any]]
+    evidence_round: int
     final: dict[str, Any]
     guardrails: dict[str, Any]

@@ -88,6 +88,19 @@ class ClaimJudgement(BaseModel):
     evidence: str = Field(default="", max_length=400)
 
 
+class EvidenceRequest(BaseModel):
+    """The Critic asking for another retrieval round instead of just rejecting.
+
+    This is what turns the pipeline from a single pass into a reasoning loop: the
+    Critic may route a targeted sub-question back to a domain agent when the
+    evidence is thin, bounded by the session budget and a hard round limit.
+    """
+
+    domain: Domain
+    question: str = Field(..., min_length=3, max_length=400)
+    reason: str = Field(default="", max_length=300)
+
+
 class CriticVerdict(BaseModel):
     """The Critic's ruling on the assembled findings."""
 
@@ -96,6 +109,8 @@ class CriticVerdict(BaseModel):
     judgements: list[ClaimJudgement] = Field(default_factory=list, max_length=20)
     removed_claims: list[str] = Field(default_factory=list, max_length=15)
     required_fixes: list[str] = Field(default_factory=list, max_length=10)
+    evidence_requests: list[EvidenceRequest] = Field(default_factory=list, max_length=4)
+    source_conflicts: list[str] = Field(default_factory=list, max_length=10)
     confidence: float = Field(default=0.6, ge=0.0, le=1.0)
 
 
@@ -130,6 +145,8 @@ class AskResponse(BaseModel):
     grounding_score: float = 0.0
     critic_verdict: str = "unknown"
     agents_run: list[str] = Field(default_factory=list)
+    evidence_rounds: int = 1
+    source_agreement: float = 1.0
     guardrails: dict[str, Any] = Field(default_factory=dict)
     knowledge_graph: dict[str, Any] = Field(default_factory=dict)
     trace: dict[str, Any] = Field(default_factory=dict)

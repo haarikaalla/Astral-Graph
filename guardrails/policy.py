@@ -1,8 +1,8 @@
 """Aggregate guardrail policy — the single gate every answer must pass.
 
-Combines grounding, numeric auditing, citation enforcement, prompt-injection
-warnings and PII/unsafe-content screening into one verdict plus machine-readable
-feedback the agents can act on during a repair pass.
+Combines grounding, numeric auditing, cross-source consensus, citation
+enforcement, prompt-injection warnings and PII/unsafe-content screening into one
+verdict plus machine-readable feedback the agents can act on during a repair pass.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any, Sequence
 
 from core.config import get_settings
+from graph.consensus import ConsensusReport, analyse_consensus
 from graph.grounding import GroundingReport, check_grounding
 from graph.schema import Fact
 from graph.store import KnowledgeGraph
@@ -34,10 +35,12 @@ class GuardrailReport:
     grounding: GroundingReport
     numeric: NumericAudit
     citations: CitationReport
+    consensus: ConsensusReport = field(default_factory=ConsensusReport)
     injection_warnings: list[str] = field(default_factory=list)
     speculation: list[str] = field(default_factory=list)
     redactions: int = 0
     failures: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def score(self) -> float:
@@ -53,9 +56,11 @@ class GuardrailReport:
             "passed": self.passed,
             "guardrail_score": self.score,
             "failures": self.failures,
+            "warnings": self.warnings,
             "grounding": self.grounding.to_dict(),
             "numeric": self.numeric.to_dict(),
             "citations": self.citations.to_dict(),
+            "consensus": self.consensus.to_dict(),
             "injection_warnings": self.injection_warnings,
             "speculation_markers": self.speculation,
             "secrets_redacted": self.redactions,
@@ -66,6 +71,7 @@ class GuardrailReport:
             self.grounding.feedback(),
             self.numeric.feedback(),
             self.citations.feedback(),
+            self.consensus.feedback(),
         ]
         if self.speculation:
             parts.append(
@@ -89,6 +95,7 @@ def run_guardrails(
     threshold: float | None = None,
     require_numeric: bool = True,
     known_sources: Sequence[str] = (),
+    strict_consensus: bool = False,
 ) -> GuardrailReport:
     settings = get_settings()
     limit = settings.grounding_threshold if threshold is None else threshold
@@ -98,12 +105,14 @@ def run_guardrails(
         text, kg, extra_facts=extra_facts, min_rate=1.0 if require_numeric else 0.0
     )
     citation_report = check_citations(text, list(citations), kg, known_extra=known_sources)
+    consensus = analyse_consensus(kg)
 
     lowered = text.lower()
     speculation = [m for m in SPECULATION_MARKERS if m in lowered]
     _, redactions = redact_secrets(text)
 
     failures: list[str] = []
+    warnings: list[str] = []
     if not grounding.grounded:
         failures.append(f"grounding score {grounding.score:.2f} < {limit:.2f}")
     if not numeric.ok:
@@ -115,13 +124,26 @@ def run_guardrails(
     if speculation:
         failures.append("speculative language present")
 
+    # Source disagreement is a warning by default: the honest response is to
+    # report the conflict, not to withhold the answer. Set ``strict_consensus``
+    # when a caller would rather refuse than disclose a discrepancy.
+    if consensus.contradicted:
+        message = (
+            f"{len(consensus.contradicted)} claim(s) with disagreeing independent sources"
+        )
+        (failures if strict_consensus else warnings).append(message)
+    if consensus.unit_mismatches:
+        warnings.append(f"{len(consensus.unit_mismatches)} claim(s) with incomparable units")
+
     return GuardrailReport(
         passed=not failures,
         grounding=grounding,
         numeric=numeric,
         citations=citation_report,
+        consensus=consensus,
         injection_warnings=list(injection_warnings),
         speculation=speculation,
         redactions=redactions,
         failures=failures,
+        warnings=warnings,
     )

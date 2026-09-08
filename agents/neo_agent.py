@@ -58,7 +58,7 @@ def explicit_impact_params(question: str) -> dict[str, float] | None:
 class NEOAgent(BaseAgent):
     name = "neo_agent"
     role = "NEO Agent (near-Earth objects, close approaches, impact risk)"
-    max_calls = 4
+    max_calls = 5
 
     def heuristic_plan(self, intent: Intent) -> list[ToolCall]:
         question = f"{self.ctx.question} {intent.normalized_question}".lower()
@@ -72,9 +72,11 @@ class NEOAgent(BaseAgent):
                          rationale="impactor parameters stated in the question")
             ]
 
+        named_targets: list[str] = []
         for entity in intent.entities:
             key = entity.lower()
             if key in NAMED:
+                named_targets.append(entity)
                 calls.append(
                     ToolCall(server="nasa_neo", tool="neo_lookup",
                              arguments={"asteroid_id": NAMED[key]},
@@ -87,9 +89,26 @@ class NEOAgent(BaseAgent):
             )
         for name, spk in NAMED.items():
             if name in question and not any(c.arguments.get("asteroid_id") == spk for c in calls):
+                named_targets.append(name)
                 calls.append(
                     ToolCall(server="nasa_neo", tool="neo_lookup",
                              arguments={"asteroid_id": spk}, rationale=f"mentioned {name}")
+                )
+
+        # Cross-check the named body against JPL, a different upstream from NeoWs.
+        # Two independent readings let the consensus layer corroborate or dispute.
+        if named_targets:
+            calls.append(
+                ToolCall(server="jpl_sbdb", tool="sbdb_lookup",
+                         arguments={"designation": named_targets[0]},
+                         rationale="independent second source for cross-checking")
+            )
+            if any(w in question for w in ("hit", "impact", "risk", "danger", "collide",
+                                           "threat", "hazard")):
+                calls.append(
+                    ToolCall(server="jpl_sbdb", tool="sentry_risk",
+                             arguments={"designation": named_targets[0]},
+                             rationale="JPL Sentry impact-probability assessment")
                 )
 
         if any(word in question for word in ("how many known", "total", "catalogue", "catalog",
@@ -112,6 +131,14 @@ class NEOAgent(BaseAgent):
                     },
                     rationale="close-approach window",
                 )
+            )
+            # JPL's CAD API answers the same question without an API key, so the
+            # feed still resolves when NeoWs is rate-limited.
+            calls.append(
+                ToolCall(server="jpl_sbdb", tool="close_approaches",
+                         arguments={"days": max(days, 1), "max_distance_lunar": 10.0,
+                                    "limit": 20},
+                         rationale="keyless independent close-approach feed")
             )
         return calls[: self.max_calls]
 

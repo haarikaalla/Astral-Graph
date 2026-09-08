@@ -231,9 +231,12 @@ def _web_facts(result: "ToolResult", prov: dict[str, Any], kg: KnowledgeGraph) -
 
 ENTITY_TYPES = {
     "nasa_neo": NodeType.ASTEROID,
+    "jpl_sbdb": NodeType.ASTEROID,
     "exoplanet": NodeType.PLANET,
     "iss": NodeType.SPACECRAFT,
     "eonet": NodeType.EARTH_EVENT,
+    "space_weather": NodeType.EARTH_EVENT,
+    "launch": NodeType.SPACECRAFT,
     "astro_compute": NodeType.COMPUTATION,
     "rag": NodeType.DOCUMENT,
     "brave_search": NodeType.DOCUMENT,
@@ -250,7 +253,9 @@ def ingest_tool_result(kg: KnowledgeGraph, result: "ToolResult", agent: str) -> 
     data = payload.get("data") if isinstance(payload, dict) and "data" in payload else payload
 
     match result.server:
-        case "nasa_neo":
+        case "nasa_neo" | "jpl_sbdb":
+            # Both describe the same bodies. Sharing an extractor keeps subjects and
+            # predicates aligned, which is what lets the consensus layer compare them.
             facts = _neo_facts(data, prov, kg)
         case "exoplanet":
             facts = _exoplanet_facts(data, prov, kg)

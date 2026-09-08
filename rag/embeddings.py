@@ -41,22 +41,52 @@ class Embedder:
                 return
             try:
                 from sentence_transformers import SentenceTransformer
-
-                self._model = SentenceTransformer(self.model_name)
-                self.backend = "sentence-transformers"
-                log_event(log, "embedder_loaded", model=self.model_name, backend=self.backend)
             except Exception as exc:  # noqa: BLE001
                 self.backend = "hashed-bow"
                 log_event(
                     log, "embedder_fallback", error=str(exc)[:200], backend=self.backend,
                     hint="pip install sentence-transformers for semantic embeddings",
                 )
+                return
+
+            # A cached model must not be defeated by a flaky network. The first
+            # attempt may reach out to the Hub for an update check; if that fails
+            # (offline, proxy, SSL interception) retry strictly from local cache
+            # before degrading, because the fallback embedder has a *different*
+            # dimension and would invalidate an already-built index.
+            online_error: str | None = None
+            for local_only in (False, True):
+                try:
+                    self._model = SentenceTransformer(
+                        self.model_name, local_files_only=local_only
+                    )
+                    self.backend = "sentence-transformers"
+                    log_event(
+                        log, "embedder_loaded", model=self.model_name,
+                        backend=self.backend, from_cache=local_only,
+                        recovered_from=online_error if local_only else None,
+                    )
+                    return
+                except Exception as exc:  # noqa: BLE001
+                    if not local_only:
+                        online_error = str(exc)[:200]
+
+            self.backend = "hashed-bow"
+            log_event(
+                log, "embedder_fallback", error=online_error, backend=self.backend,
+                dimension=_FALLBACK_DIM,
+                hint="model unavailable online and not in the local cache; "
+                     "an index built with all-MiniLM-L6-v2 will not be readable",
+            )
 
     @property
     def dimension(self) -> int:
         self._load()
         if self._model is not None:
-            return int(self._model.get_sentence_embedding_dimension())
+            # Renamed in sentence-transformers 5.x; accept either spelling.
+            getter = (getattr(self._model, "get_embedding_dimension", None)
+                      or self._model.get_sentence_embedding_dimension)
+            return int(getter())
         return _FALLBACK_DIM
 
     def encode(self, texts: Sequence[str]) -> list[list[float]]:

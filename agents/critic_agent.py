@@ -17,7 +17,7 @@ from typing import Any
 from core.telemetry import get_logger, log_event, span
 from guardrails.permissions import PermissionBroker
 from guardrails.policy import run_guardrails
-from guardrails.schemas import ClaimJudgement, CriticVerdict
+from guardrails.schemas import ClaimJudgement, CriticVerdict, EvidenceRequest
 from agents import prompts
 from agents.base import merge_findings
 from agents.state import RunContext
@@ -55,6 +55,8 @@ class CriticAgent:
             await self._persist(verdict, report.score)
 
             sp["verdict"] = verdict.verdict
+            sp["source_agreement"] = report.consensus.agreement_rate
+            sp["conflicts"] = len(report.consensus.contradicted)
             sp["_ok"] = verdict.verdict != "reject"
 
         self.ctx.permission_reports.append(self.broker.report())
@@ -63,7 +65,9 @@ class CriticAgent:
                 **verdict.model_dump(),
                 "deterministic_report": report.to_dict(),
                 "guardrail_feedback": report.feedback(),
+                "source_caveats": report.consensus.caveats(),
             },
+            "evidence_requests": [r.model_dump() for r in verdict.evidence_requests],
             "agents_run": [self.name],
             "guardrail_reports": {self.name: report.to_dict()},
         }
@@ -94,8 +98,10 @@ class CriticAgent:
     def _deterministic_verdict(self, deterministic: dict[str, Any]) -> CriticVerdict:
         grounding = deterministic.get("grounding", {})
         numeric = deterministic.get("numeric", {})
+        consensus = deterministic.get("consensus", {})
         unsupported = grounding.get("unsupported_sentences", []) or []
         unverified = numeric.get("unverified_numbers", []) or []
+        conflicts = consensus.get("conflicts", []) or []
 
         if deterministic.get("passed"):
             verdict = "accept"
@@ -109,6 +115,16 @@ class CriticAgent:
                            evidence="not matched to any knowledge-graph fact")
             for s in unsupported[:15]
         ]
+        judgements.extend(
+            ClaimJudgement(
+                claim=str(c.get("description", ""))[:600],
+                status="contradicted",
+                evidence=f"independent sources disagree: {', '.join(c.get('sources', []))}",
+            )
+            for c in conflicts[:5]
+            if c.get("description")
+        )
+
         fixes = []
         if unverified:
             fixes.append(
@@ -117,18 +133,66 @@ class CriticAgent:
             )
         if not deterministic.get("citations", {}).get("ok", True):
             fixes.append("Add a citation from the evidence for every literature claim.")
+        if conflicts:
+            fixes.append(
+                "Report the source disagreement explicitly instead of picking one value."
+            )
         return CriticVerdict(
             verdict=verdict,  # type: ignore[arg-type]
             grounding_assessment=(
                 f"Deterministic check: grounding={grounding.get('grounding_score')}, "
                 f"numeric verification={numeric.get('verification_rate')}, "
+                f"source agreement={consensus.get('agreement_rate')}, "
                 f"failures={deterministic.get('failures')}"
             )[:1200],
-            judgements=judgements,
+            judgements=judgements[:20],
             removed_claims=[str(s)[:600] for s in unsupported[:15]],
             required_fixes=fixes[:10],
+            evidence_requests=self._derive_evidence_requests(deterministic),
+            source_conflicts=[
+                str(c.get("description", ""))[:300] for c in conflicts[:10] if c.get("description")
+            ],
             confidence=float(deterministic.get("guardrail_score", 0.0)),
         )
+
+    def _derive_evidence_requests(self, deterministic: dict[str, Any]) -> list[EvidenceRequest]:
+        """Turn evidence gaps into targeted follow-up retrievals.
+
+        Deliberately conservative: only asks again when there is a concrete gap a
+        second round could plausibly close, so the loop terminates quickly.
+        """
+        if deterministic.get("passed"):
+            return []
+
+        grounding = deterministic.get("grounding", {})
+        numeric = deterministic.get("numeric", {})
+        requests: list[EvidenceRequest] = []
+
+        if grounding.get("fact_count", 0) == 0:
+            requests.append(
+                EvidenceRequest(
+                    domain="literature",
+                    question=self.ctx.question[:400],
+                    reason="no facts were collected on the first pass",
+                )
+            )
+        for sentence in (grounding.get("unsupported_sentences", []) or [])[:2]:
+            requests.append(
+                EvidenceRequest(
+                    domain="literature",
+                    question=str(sentence)[:400],
+                    reason="claim had no supporting fact in the graph",
+                )
+            )
+        if numeric.get("unverified_numbers"):
+            requests.append(
+                EvidenceRequest(
+                    domain="general",
+                    question=f"authoritative values for: {self.ctx.question[:300]}",
+                    reason="answer contained numbers with no traceable source",
+                )
+            )
+        return requests[:4]
 
     async def _verify_numbers(self, report: Any) -> None:
         """Spot-check the largest unverified number against the deterministic server."""

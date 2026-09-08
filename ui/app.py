@@ -83,15 +83,21 @@ def render_graph(graph: dict) -> None:
         g.add_node(node["id"], **node)
     for edge in edges:
         if edge.get("source") in g and edge.get("target") in g:
-            g.add_edge(edge["source"], edge["target"])
+            g.add_edge(edge["source"], edge["target"],
+                       relation=str(edge.get("relation", "")))
 
     positions = nx.spring_layout(g, seed=7, k=0.6)
     edge_x, edge_y = [], []
-    for source, target in g.edges():
+    clash_x, clash_y = [], []
+    for source, target, data in g.edges(data=True):
         x0, y0 = positions[source]
         x1, y1 = positions[target]
-        edge_x += [x0, x1, None]
-        edge_y += [y0, y1, None]
+        if "CONTRADICTS" in data.get("relation", "").upper():
+            clash_x += [x0, x1, None]
+            clash_y += [y0, y1, None]
+        else:
+            edge_x += [x0, x1, None]
+            edge_y += [y0, y1, None]
 
     palette = {
         "Fact": "#4cc9f0", "Claim": "#f72585", "Source": "#ffd166",
@@ -108,6 +114,11 @@ def render_graph(graph: dict) -> None:
     figure = go.Figure()
     figure.add_trace(go.Scatter(x=edge_x, y=edge_y, mode="lines",
                                 line=dict(width=0.6, color="#555"), hoverinfo="none"))
+    if clash_x:
+        # Source disagreements are the one edge type worth seeing at a glance.
+        figure.add_trace(go.Scatter(x=clash_x, y=clash_y, mode="lines", name="contradicts",
+                                    line=dict(width=2.0, color="#f72585", dash="dot"),
+                                    hoverinfo="none"))
     figure.add_trace(go.Scatter(x=node_x, y=node_y, mode="markers", text=labels,
                                 hoverinfo="text",
                                 marker=dict(size=11, color=colours,
@@ -125,8 +136,9 @@ def render_guardrails(guardrails: dict) -> None:
     grounding = guardrails.get("grounding", {})
     numeric = guardrails.get("numeric", {})
     citations = guardrails.get("citations", {})
+    consensus = guardrails.get("consensus", {})
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("Guardrail score", f"{guardrails.get('guardrail_score', 0):.2f}")
     col2.metric("Grounding", f"{grounding.get('grounding_score', 0):.2f}",
                 "grounded" if grounding.get("grounded") else "not grounded")
@@ -134,8 +146,20 @@ def render_guardrails(guardrails: dict) -> None:
                 f"{numeric.get('numbers_verified', 0)}/{numeric.get('numbers_checked', 0)}")
     col4.metric("Citations", "ok" if citations.get("ok") else "missing")
 
+    cross_checked = consensus.get("cross_checked", 0)
+    col5.metric(
+        "Source agreement",
+        f"{consensus.get('agreement_rate', 1.0):.0%}" if cross_checked else "n/a",
+        f"{cross_checked} claim(s) cross-checked" if cross_checked
+        else "single source only",
+    )
+
     if guardrails.get("failures"):
         st.warning("Guardrail failures: " + "; ".join(guardrails["failures"]))
+    if guardrails.get("warnings"):
+        st.info("Warnings: " + "; ".join(guardrails["warnings"]))
+    for caveat in consensus.get("caveats", []):
+        st.warning(caveat)
     if numeric.get("unverified_numbers"):
         st.error("Numbers not backed by any tool result: "
                  + ", ".join(f"{n:g}" for n in numeric["unverified_numbers"][:10]))

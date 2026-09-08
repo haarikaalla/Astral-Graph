@@ -102,6 +102,33 @@ def build_registry() -> dict[str, ServerSpec]:
             origin="custom",
             env={**common_env, "ASTRAL_CHROMA_DIR": str(settings.chroma_dir)},
         ),
+        ServerSpec(
+            name="jpl_sbdb",
+            command=py,
+            args=["-m", "mcp_servers.jpl_sbdb_server"],
+            description=(
+                "NASA JPL Solar System Dynamics — small-body lookup, close approaches and "
+                "Sentry impact risk. Independent of NeoWs, so the two can be cross-checked."
+            ),
+            origin="custom",
+            env=common_env,
+        ),
+        ServerSpec(
+            name="space_weather",
+            command=py,
+            args=["-m", "mcp_servers.space_weather_server"],
+            description="NASA DONKI + NOAA SWPC — solar flares, CMEs and geomagnetic storms.",
+            origin="custom",
+            env=common_env,
+        ),
+        ServerSpec(
+            name="launch",
+            command=py,
+            args=["-m", "mcp_servers.launch_server"],
+            description="Launch Library 2 — upcoming and historical orbital launches.",
+            origin="custom",
+            env=common_env,
+        ),
         # ---------------- official pre-built servers ----------------
         ServerSpec(
             name="filesystem",
@@ -141,18 +168,28 @@ def build_registry() -> dict[str, ServerSpec]:
 
 AGENT_PERMISSIONS: dict[str, set[str]] = {
     "intent_parser": set(),                                  # pure reasoning, no tools
-    "neo_agent": {"nasa_neo", "astro_compute"},
+    "neo_agent": {"nasa_neo", "jpl_sbdb", "astro_compute"},
     "exoplanet_agent": {"exoplanet", "astro_compute"},
-    "events_agent": {"iss", "eonet", "astro_compute"},
+    "events_agent": {"iss", "eonet", "space_weather", "launch", "astro_compute"},
     "literature_agent": {"rag", "brave_search"},
-    "critic_agent": {"astro_compute", "memory"},
+    # The Critic may reach jpl_sbdb because it is a *different* upstream from the
+    # one the NEO agent used: independent re-derivation, not re-reading the same
+    # source. It still cannot touch nasa_neo.
+    "critic_agent": {"astro_compute", "jpl_sbdb", "memory"},
     "orchestrator": {"filesystem", "memory"},
     "ingest": {"rag", "filesystem"},                          # offline pipelines
     "eval_harness": set(),
 }
 
 #: Servers whose data is treated as *evidence* (writable into the knowledge graph).
-EVIDENCE_SERVERS = {"nasa_neo", "exoplanet", "iss", "eonet", "astro_compute", "rag", "brave_search"}
+EVIDENCE_SERVERS = {
+    "nasa_neo", "jpl_sbdb", "exoplanet", "iss", "eonet", "space_weather", "launch",
+    "astro_compute", "rag", "brave_search",
+}
+
+#: Server pairs covering the same ground from different upstreams. The consensus
+#: layer treats agreement between them as genuine corroboration.
+INDEPENDENT_SOURCE_PAIRS = [("nasa_neo", "jpl_sbdb")]
 
 
 def allowed_servers(agent: str) -> set[str]:

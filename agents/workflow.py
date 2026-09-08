@@ -5,11 +5,21 @@
          ├── neo_agent ─────────┐
          ├── exoplanet_agent ───┤
          ├── events_agent ──────┤──▶ critic_agent ──▶ orchestrator ──▶ END
-         └── literature_agent ──┘
+         └── literature_agent ──┘        │
+                    ▲                     │
+                    └── evidence loop ───┘  (critic may demand another round)
 
 Domain agents run in parallel within one LangGraph super-step; the Critic only
-runs once every dispatched branch has finished. If ``langgraph`` is unavailable the
-same topology is executed by a small asyncio fallback so the system still runs.
+runs once every dispatched branch has finished.
+
+The Critic is not limited to accepting or rejecting. When evidence is thin it can
+emit :class:`~guardrails.schemas.EvidenceRequest` objects, which route targeted
+sub-questions back to the domain agents for another round. The loop is bounded by
+:data:`MAX_EVIDENCE_ROUNDS` and by the session tool-call budget, so it always
+terminates.
+
+If ``langgraph`` is unavailable the same topology is executed by a small asyncio
+fallback so the system still runs.
 """
 
 from __future__ import annotations
@@ -43,6 +53,10 @@ DOMAIN_AGENTS = {
     "general": ("literature_agent", LiteratureAgent),
 }
 
+#: Hard ceiling on critic-triggered retrieval rounds. The loop also stops early
+#: when the budget is exhausted or the critic stops asking.
+MAX_EVIDENCE_ROUNDS = 2
+
 
 # --------------------------------------------------------------------------- #
 # Node implementations (shared by both executors)
@@ -59,10 +73,11 @@ async def node_intent(state: AstralState) -> dict[str, Any]:
     return {"intent": intent.model_dump(), "route": route, "agents_run": ["intent_parser"]}
 
 
-def _make_domain_node(agent_cls: type) -> Any:
+def _make_domain_node(agent_cls: type, node_name: str = "") -> Any:
     async def node(state: AstralState) -> dict[str, Any]:
         ctx: RunContext = state["ctx"]
         intent = Intent.model_validate(state["intent"])
+        intent = _apply_evidence_requests(intent, state, node_name)
         agent = agent_cls(ctx)
         try:
             return await agent.run(intent)
@@ -76,9 +91,28 @@ def _make_domain_node(agent_cls: type) -> Any:
     return node
 
 
+def _apply_evidence_requests(intent: Intent, state: AstralState, node_name: str) -> Intent:
+    """Fold any critic follow-ups for this agent into the intent it re-runs on."""
+    requests = state.get("evidence_requests") or []
+    if not requests or not node_name:
+        return intent
+    mine = [
+        r for r in requests
+        if DOMAIN_AGENTS.get(str(r.get("domain", "")), ("",))[0] == node_name
+    ]
+    if not mine:
+        return intent
+    follow_ups = [str(r.get("question", ""))[:400] for r in mine if r.get("question")]
+    merged = list(dict.fromkeys([*intent.sub_questions, *follow_ups]))[:6]
+    log_event(log, "evidence_round_requested", agent=node_name, follow_ups=len(follow_ups))
+    return intent.model_copy(update={"sub_questions": merged})
+
+
 async def node_critic(state: AstralState) -> dict[str, Any]:
     ctx: RunContext = state["ctx"]
-    return await CriticAgent(ctx).run(list(state.get("findings", [])))
+    result = await CriticAgent(ctx).run(list(state.get("findings", [])))
+    result["evidence_round"] = int(state.get("evidence_round", 0)) + 1
+    return result
 
 
 async def node_orchestrator(state: AstralState) -> dict[str, Any]:
@@ -90,6 +124,34 @@ async def node_orchestrator(state: AstralState) -> dict[str, Any]:
 
 def _router(state: AstralState) -> list[str]:
     return list(state.get("route") or ["literature_agent"])
+
+
+def _critic_router(state: AstralState) -> list[str]:
+    """After the Critic: either gather more evidence, or synthesise the answer.
+
+    Another round is granted only when the Critic asked for one, the round cap is
+    not yet reached, and the session still has tool-call budget. Any of those
+    failing sends the run to the Orchestrator, which answers with what it has.
+    """
+    requests = state.get("evidence_requests") or []
+    rounds = int(state.get("evidence_round", 0))
+    ctx: RunContext = state["ctx"]
+
+    if not requests or rounds >= MAX_EVIDENCE_ROUNDS:
+        return ["orchestrator"]
+    if not ctx.budget.allows("evidence_loop"):
+        log_event(log, "evidence_loop_budget_exhausted", round=rounds)
+        return ["orchestrator"]
+
+    targets = list(dict.fromkeys(
+        DOMAIN_AGENTS[str(r.get("domain", ""))][0]
+        for r in requests
+        if str(r.get("domain", "")) in DOMAIN_AGENTS
+    ))
+    if not targets:
+        return ["orchestrator"]
+    log_event(log, "evidence_loop_entered", round=rounds, targets=targets)
+    return targets
 
 
 # --------------------------------------------------------------------------- #
@@ -110,20 +172,25 @@ class AstralWorkflow:
             builder.add_node("intent_parser", node_intent)
             for _, (node_name, agent_cls) in DOMAIN_AGENTS.items():
                 if node_name not in builder.nodes:
-                    builder.add_node(node_name, _make_domain_node(agent_cls))
+                    builder.add_node(node_name, _make_domain_node(agent_cls, node_name))
             builder.add_node("critic_agent", node_critic)
             builder.add_node("orchestrator", node_orchestrator)
 
+            domain_nodes = {v[0] for v in DOMAIN_AGENTS.values()}
             builder.add_edge(START, "intent_parser")
             builder.add_conditional_edges(
                 "intent_parser",
                 _router,
-                {name: name for name, _ in
-                 {v[0]: v[1] for v in DOMAIN_AGENTS.values()}.items()},
+                {name: name for name in domain_nodes},
             )
-            for node_name in {v[0] for v in DOMAIN_AGENTS.values()}:
+            for node_name in domain_nodes:
                 builder.add_edge(node_name, "critic_agent")
-            builder.add_edge("critic_agent", "orchestrator")
+            # The critic may send the run back for another evidence round.
+            builder.add_conditional_edges(
+                "critic_agent",
+                _critic_router,
+                {**{name: name for name in domain_nodes}, "orchestrator": "orchestrator"},
+            )
             builder.add_edge("orchestrator", END)
 
             self.app = builder.compile()
@@ -142,24 +209,36 @@ class AstralWorkflow:
         merged: dict[str, Any] = dict(state)
         merged.update(await node_intent(state))  # type: ignore[arg-type]
         node_map = {v[0]: v[1] for v in DOMAIN_AGENTS.values()}
-        tasks = [
-            _make_domain_node(node_map[name])(merged)  # type: ignore[arg-type]
-            for name in merged["route"]
-            if name in node_map
-        ]
-        findings: list[dict[str, Any]] = []
-        agents_run: list[str] = list(merged.get("agents_run", []))
-        errors: list[dict[str, Any]] = []
-        reports: dict[str, Any] = {}
-        for result in await asyncio.gather(*tasks, return_exceptions=True):
-            if isinstance(result, dict):
-                findings.extend(result.get("findings", []))
-                agents_run.extend(result.get("agents_run", []))
-                errors.extend(result.get("agent_errors", []))
-                reports.update(result.get("guardrail_reports", {}))
-        merged.update({"findings": findings, "agents_run": agents_run,
-                       "agent_errors": errors, "guardrail_reports": reports})
+
+        async def gather(targets: list[str]) -> None:
+            tasks = [
+                _make_domain_node(node_map[name], name)(merged)  # type: ignore[arg-type]
+                for name in targets
+                if name in node_map
+            ]
+            for result in await asyncio.gather(*tasks, return_exceptions=True):
+                if not isinstance(result, dict):
+                    continue
+                merged["findings"] = [*merged.get("findings", []), *result.get("findings", [])]
+                merged["agents_run"] = [*merged.get("agents_run", []), *result.get("agents_run", [])]
+                merged["agent_errors"] = [
+                    *merged.get("agent_errors", []), *result.get("agent_errors", [])
+                ]
+                merged["guardrail_reports"] = {
+                    **merged.get("guardrail_reports", {}), **result.get("guardrail_reports", {})
+                }
+
+        await gather(list(merged.get("route", [])))
         merged.update(await node_critic(merged))  # type: ignore[arg-type]
+
+        # Same bounded evidence loop the LangGraph topology runs.
+        while True:
+            targets = _critic_router(merged)  # type: ignore[arg-type]
+            if targets == ["orchestrator"]:
+                break
+            await gather(targets)
+            merged.update(await node_critic(merged))  # type: ignore[arg-type]
+
         merged.update(await node_orchestrator(merged))  # type: ignore[arg-type]
         return merged  # type: ignore[return-value]
 
@@ -204,7 +283,8 @@ async def answer_question(
         )
         state: AstralState = {"question": question, "session_id": sid, "ctx": ctx,
                               "findings": [], "agents_run": [], "agent_errors": [],
-                              "guardrail_reports": {}}
+                              "guardrail_reports": {}, "evidence_requests": [],
+                              "evidence_round": 0}
         with span(trace, "pipeline", "workflow", question=question[:200]):
             result = await get_workflow().invoke(state)
 
@@ -225,6 +305,10 @@ async def answer_question(
             grounding_score=float(grounding.get("grounding_score", 0.0)),
             critic_verdict=str((result.get("critic") or {}).get("verdict", "unknown")),
             agents_run=list(dict.fromkeys(result.get("agents_run", []))),
+            evidence_rounds=int(result.get("evidence_round", 1) or 1),
+            source_agreement=float(
+                (guardrails.get("consensus") or {}).get("agreement_rate", 1.0)
+            ),
             guardrails=guardrails,
             knowledge_graph=(kg.to_cytoscape() if include_graph else kg.stats()),
             trace=(trace.summary() if include_trace else {}),

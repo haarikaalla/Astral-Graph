@@ -26,7 +26,8 @@ def anyio_backend():
 # --------------------------------------------------------------------------- #
 def test_every_custom_server_is_registered():
     registry = build_registry()
-    for name in ("nasa_neo", "exoplanet", "iss", "eonet", "astro_compute", "rag"):
+    for name in ("nasa_neo", "exoplanet", "iss", "eonet", "astro_compute", "rag",
+                 "jpl_sbdb", "space_weather", "launch"):
         assert name in registry
         assert registry[name].origin == "custom"
 
