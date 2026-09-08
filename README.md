@@ -8,7 +8,7 @@
 
 <br/>
 
-** Agents & reasoning**
+ Agents & reasoning
 
 [![Python](https://img.shields.io/badge/Python-3.12%20|%203.13-3776AB?logo=python&logoColor=white)](https://python.org)
 [![MCP](https://img.shields.io/badge/Model_Context_Protocol-1.x%20%26%202.x-4cc9f0?logo=anthropic&logoColor=white)](https://modelcontextprotocol.io)
@@ -16,7 +16,7 @@
 [![Claude](https://img.shields.io/badge/Claude-Sonnet_4-d4a373?logo=anthropic&logoColor=white)](https://anthropic.com)
 [![Pydantic](https://img.shields.io/badge/Pydantic-typed_agent_contracts-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev)
 
-** Retrieval & knowledge**
+Retrieval & knowledge
 
 [![ChromaDB](https://img.shields.io/badge/ChromaDB-vector_store-FF6B6B)](https://trychroma.com)
 [![Sentence-Transformers](https://img.shields.io/badge/Sentence--Transformers-MiniLM--L6--v2-FFB000?logo=huggingface&logoColor=black)](https://sbert.net)
@@ -24,7 +24,7 @@
 [![NetworkX](https://img.shields.io/badge/NetworkX-knowledge_graph-2C7FB8)](https://networkx.org)
 [![Neo4j](https://img.shields.io/badge/Neo4j-optional_backend-4581C3?logo=neo4j&logoColor=white)](https://neo4j.com)
 
-** Serving & engineering**
+ Serving & engineering
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-async_API-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Streamlit](https://img.shields.io/badge/Streamlit-live_dashboard-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
