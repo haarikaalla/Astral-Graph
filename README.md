@@ -739,18 +739,18 @@ astralgraph/
 
 Nothing. That's not a marketing line — it's a design constraint, and it's what made the benchmark reproducible.
 
-| Component | Key needed | Cost |
+| Component | Key needed |  |
 | --- | --- | --- |
-| NASA NeoWs | Free key from [api.nasa.gov](https://api.nasa.gov), or the shared `DEMO_KEY` | $0 |
-| NASA Exoplanet Archive (TAP) | None | $0 |
-| Open Notify (ISS position & crew) | None | $0 |
-| NASA EONET v3 | None | $0 |
-| `astro_compute` | None — pure Python, no network | $0 |
-| Embeddings (`all-MiniLM-L6-v2`) | None — runs locally on CPU | $0 |
-| Vector store (Chroma) | None — local SQLite file | $0 |
-| Brave Search | Free-tier key, **optional** | $0 |
-| Claude | **Optional.** Without a key the pipeline uses deterministic synthesis. | $0 |
-| **Full benchmark run (17 questions)** | | **$0.00** |
+| NASA NeoWs | Free key from [api.nasa.gov](https://api.nasa.gov), or the shared `DEMO_KEY` 
+| NASA Exoplanet Archive (TAP) | None 
+| Open Notify (ISS position & crew) | None 
+| NASA EONET v3 | None 
+| `astro_compute` | None — pure Python, no network 
+| Embeddings (`all-MiniLM-L6-v2`) | None — runs locally on CPU 
+| Vector store (Chroma) | None — local SQLite file 
+| Brave Search | Free-tier key, **optional** 
+| Claude | **Optional.** Without a key the pipeline uses deterministic synthesis. 
+| **Full benchmark run (17 questions)** | 
 
 Add an Anthropic key and the answers become noticeably better *prose* — but the *facts* don't change, because the facts never came from the model in the first place.
 
