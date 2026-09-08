@@ -4,18 +4,33 @@
 
 ### An AI research assistant that cannot make up a number
 
-*Seven agents passing typed contracts. Nine MCP servers. A provenance knowledge graph. A 17-question harness that fails loudly when any of it regresses.*
+*Agentic RAG on the Model Context Protocol — planning, tool use, retrieval, and self-verification, wired to a provenance knowledge graph.*
 
 <br/>
 
-[![Python](https://img.shields.io/badge/python-3.12%20|%203.13-3776AB?logo=python&logoColor=white)](https://python.org)
-[![MCP](https://img.shields.io/badge/MCP-1.x%20%26%202.x-4cc9f0)](https://modelcontextprotocol.io)
-[![LangGraph](https://img.shields.io/badge/LangGraph-multi--agent-57cc99)](https://langchain-ai.github.io/langgraph/)
-[![Claude](https://img.shields.io/badge/Claude-optional-d4a373?logo=anthropic&logoColor=white)](https://anthropic.com)
-[![Accuracy](https://img.shields.io/badge/accuracy-94.1%25-57cc99)](#-results)
-[![Hallucination](https://img.shields.io/badge/hallucination-0.0%25-4cc9f0)](#-results)
-[![Tests](https://img.shields.io/badge/tests-68%20passing-57cc99)](#-testing)
-[![Cost](https://img.shields.io/badge/cost-%240.00-ffd166)](#-what-it-costs)
+**🧠 Agents & reasoning**
+
+[![Python](https://img.shields.io/badge/Python-3.12%20|%203.13-3776AB?logo=python&logoColor=white)](https://python.org)
+[![MCP](https://img.shields.io/badge/Model_Context_Protocol-1.x%20%26%202.x-4cc9f0?logo=anthropic&logoColor=white)](https://modelcontextprotocol.io)
+[![LangGraph](https://img.shields.io/badge/LangGraph-stateful_multi--agent-57cc99?logo=langchain&logoColor=white)](https://langchain-ai.github.io/langgraph/)
+[![Claude](https://img.shields.io/badge/Claude-Sonnet_4-d4a373?logo=anthropic&logoColor=white)](https://anthropic.com)
+[![Pydantic](https://img.shields.io/badge/Pydantic-typed_agent_contracts-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev)
+
+**📚 Retrieval & knowledge**
+
+[![ChromaDB](https://img.shields.io/badge/ChromaDB-vector_store-FF6B6B)](https://trychroma.com)
+[![Sentence-Transformers](https://img.shields.io/badge/Sentence--Transformers-MiniLM--L6--v2-FFB000?logo=huggingface&logoColor=black)](https://sbert.net)
+[![HuggingFace](https://img.shields.io/badge/🤗_Datasets-astro--ph_corpus-FFD21E)](https://huggingface.co/datasets/UniverseTBD/arxiv-qa-astro-ph)
+[![NetworkX](https://img.shields.io/badge/NetworkX-knowledge_graph-2C7FB8)](https://networkx.org)
+[![Neo4j](https://img.shields.io/badge/Neo4j-optional_backend-4581C3?logo=neo4j&logoColor=white)](https://neo4j.com)
+
+**⚙️ Serving & engineering**
+
+[![FastAPI](https://img.shields.io/badge/FastAPI-async_API-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Streamlit](https://img.shields.io/badge/Streamlit-live_dashboard-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
+[![Docker](https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white)](https://docker.com)
+[![pytest](https://img.shields.io/badge/pytest-68_tests-0A9EDC?logo=pytest&logoColor=white)](#-testing)
+[![structlog](https://img.shields.io/badge/structlog_+_Langfuse-tracing-A78BFA)](https://langfuse.com)
 
 </div>
 
@@ -41,6 +56,21 @@ flowchart LR
 *Every number in the answer must survive step 4, or it never reaches you.*
 
 </div>
+
+### AI techniques actually implemented here
+
+| Technique | Where it lives |
+| --- | --- |
+| 🧠 **Multi-agent orchestration** — stateful graph, conditional routing, parallel fan-out | [agents/workflow.py](agents/workflow.py) |
+| 🔧 **Tool-calling over a standard protocol** — dynamic discovery, not hardcoded functions | [core/mcp_client.py](core/mcp_client.py) |
+| 🎯 **Intent parsing & task decomposition** — domains, entities, sub-questions | [agents/intent_parser.py](agents/intent_parser.py) |
+| 📚 **Agentic RAG** — dense retrieval with source-aware re-ranking, not naive top-k | [rag/retriever.py](rag/retriever.py) |
+| 🕸️ **Knowledge-graph grounding** — claims scored against typed facts with provenance | [graph/grounding.py](graph/grounding.py) |
+| 🔍 **LLM-as-critic self-verification** — an adversarial pass with deliberately restricted tools | [agents/critic_agent.py](agents/critic_agent.py) |
+| 📐 **Constrained decoding with repair loops** — Pydantic contracts, retry prompt, deterministic fallback | [guardrails/schemas.py](guardrails/schemas.py) |
+| 🚫 **False-premise detection** — refuses questions built on invented facts | [guardrails/policy.py](guardrails/policy.py) |
+| 🔒 **Capability-scoped agents** — a permission matrix enforced twice, tested to raise | [guardrails/permissions.py](guardrails/permissions.py) |
+| 📊 **Automated evaluation** — gold-answer harness scoring accuracy, grounding, latency, cost | [eval/harness.py](eval/harness.py) |
 
 ---
 
