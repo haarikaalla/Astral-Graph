@@ -1,0 +1,4 @@
+# Development install.
+# Installs the local package metadata from pyproject.toml and test dependencies.
+
+-e .[dev]
