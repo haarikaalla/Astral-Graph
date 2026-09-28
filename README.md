@@ -47,6 +47,28 @@ flowchart TD
 Detailed notes are in [docs/architecture.md](docs/architecture.md),
 [docs/evaluation.md](docs/evaluation.md), and [docs/operations.md](docs/operations.md).
 
+## High-Level MCP Connections
+
+AstralGraph treats MCP as the boundary between reasoning agents and external
+capabilities. The registry in `core/mcp_registry.py` defines which servers exist and
+which agents can reach them.
+
+| Agent | MCP servers |
+| --- | --- |
+| `intent_parser` | none |
+| `neo_agent` | `nasa_neo`, `jpl_sbdb`, `astro_compute` |
+| `exoplanet_agent` | `exoplanet`, `astro_compute` |
+| `events_agent` | `iss`, `eonet`, `space_weather`, `launch`, `astro_compute` |
+| `literature_agent` | `rag`, `brave_search` |
+| `critic_agent` | `astro_compute`, `jpl_sbdb`, `memory` |
+| `orchestrator` | `filesystem`, `memory` |
+| `ingest` | `rag`, `filesystem` |
+| `eval_harness` | none |
+
+Use `GET /mcp/topology` to inspect this map as JSON without starting live MCP tool
+sessions. Use `GET /mcp/tools` when you want live tool discovery from reachable
+servers.
+
 ## Key Capabilities
 
 - Stateful multi-agent workflow with domain routing.
@@ -114,6 +136,7 @@ To enable the optional Neo4j profile, set `NEO4J_PASSWORD` explicitly before sta
 | `POST /ask/stream` | Stream progress events and final result. |
 | `GET /health` | Service, configuration, RAG, and MCP summary. |
 | `GET /mcp/servers` | Server registry and agent permission matrix. |
+| `GET /mcp/topology` | High-level agent-to-MCP connection map. |
 | `GET /mcp/tools` | Live tool discovery across reachable MCP servers. |
 | `GET /rag/stats` | Vector-index health. |
 | `POST /rag/ingest` | Ingest seed, arXiv, or HuggingFace astronomy data. |
