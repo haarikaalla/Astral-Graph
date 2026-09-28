@@ -9,6 +9,7 @@ services:
       ASTRAL_FS_ROOT: /app/workspace_data
       ASTRAL_CHROMA_DIR: /app/storage/chroma
       ASTRAL_LOG_DIR: /app/storage/logs
+      ASTRAL_CORS_ORIGINS: ${ASTRAL_CORS_ORIGINS:-http://localhost:8501,http://127.0.0.1:8501}
     volumes:
       - ./storage:/app/storage
       - ./workspace_data:/app/workspace_data
@@ -21,6 +22,8 @@ services:
       - "8501:8501"
     env_file:
       - .env
+    environment:
+      ASTRAL_CORS_ORIGINS: ${ASTRAL_CORS_ORIGINS:-http://localhost:8501,http://127.0.0.1:8501}
     depends_on:
       - api
     volumes:
@@ -29,7 +32,7 @@ services:
       - ./eval/results:/app/eval/results
 
   # Optional: the knowledge graph mirrors into Neo4j when NEO4J_URI is set.
-  # Start with:  docker compose --profile neo4j up
+  # Start with: NEO4J_PASSWORD=<your-password> docker compose --profile neo4j up
   neo4j:
     image: neo4j:5-community
     profiles: ["neo4j"]
@@ -37,7 +40,7 @@ services:
       - "7474:7474"
       - "7687:7687"
     environment:
-      NEO4J_AUTH: neo4j/astralgraph
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD before enabling the neo4j profile}
       NEO4J_PLUGINS: '["apoc"]'
     volumes:
       - neo4j_data:/data
