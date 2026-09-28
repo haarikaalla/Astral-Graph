@@ -4,6 +4,26 @@ AstralGraph is organized around one rule: final answers should be grounded in fa
 that were fetched, computed, or retrieved by controlled tools and recorded with
 provenance.
 
+## System Diagram
+
+```mermaid
+flowchart TD
+    Request["AskRequest"] --> API["api/main.py"]
+    API --> Workflow["agents/workflow.py"]
+    Workflow --> Hub["core/mcp_client.py"]
+    Hub --> Registry["core/mcp_registry.py"]
+    Registry --> Servers["mcp_servers plus optional official MCP"]
+    Servers --> Facts["typed facts"]
+    Facts --> Graph["graph/store.py"]
+    Graph --> Consensus["graph/consensus.py"]
+    Consensus --> Critic["critic agent"]
+    Critic --> Response["AskResponse with citations"]
+```
+
+The API also exposes the live topology through `GET /mcp/topology`. That endpoint is
+useful for demos because it shows the agent-to-server connections without launching
+tool sessions.
+
 ## Request Flow
 
 1. The FastAPI service receives an `AskRequest`.
