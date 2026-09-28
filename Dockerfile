@@ -1,6 +1,5 @@
-# AstralGraph — multi-agent astronomy research assistant over MCP.
-# Node is required: the official Filesystem / Memory / Brave Search MCP servers
-# are launched with npx.
+# AstralGraph - multi-agent astronomy research assistant over MCP.
+# Node is required because official MCP servers are launched with npx.
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -20,7 +19,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p storage/chroma storage/logs workspace_data eval/results
+RUN addgroup --system astralgraph \
+    && adduser --system --ingroup astralgraph --home /app astralgraph \
+    && mkdir -p storage/chroma storage/logs workspace_data eval/results \
+    && chown -R astralgraph:astralgraph /app
+
+USER astralgraph
 
 EXPOSE 8000 8501
 
