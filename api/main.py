@@ -6,6 +6,7 @@ Endpoints
 ``POST /ask/stream``     Same, as a Server-Sent Events progress stream
 ``GET  /health``         Liveness + configuration summary
 ``GET  /mcp/servers``    The MCP registry and the agent→server permission matrix
+``GET  /mcp/topology``   High-level agent→MCP connection map
 ``GET  /mcp/tools``      Live tool discovery across all reachable servers
 ``GET  /rag/stats``      Vector-index health
 ``POST /rag/ingest``     Trigger corpus ingestion
@@ -29,7 +30,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from core.config import get_settings
 from core.mcp_client import MCPHub
-from core.mcp_registry import AGENT_PERMISSIONS, describe_registry
+from core.mcp_registry import AGENT_PERMISSIONS, describe_mcp_topology, describe_registry
 from core.telemetry import configure_logging, get_logger, log_event
 from graph.store import get_graph
 from guardrails.schemas import AskRequest, AskResponse
@@ -170,6 +171,11 @@ async def mcp_servers() -> dict[str, Any]:
         "servers": describe_registry(),
         "permissions": {agent: sorted(servers) for agent, servers in AGENT_PERMISSIONS.items()},
     }
+
+
+@app.get("/mcp/topology", summary="High-level MCP connection topology")
+async def mcp_topology() -> dict[str, Any]:
+    return describe_mcp_topology()
 
 
 @app.get("/mcp/tools", summary="Live tool discovery across reachable MCP servers")
