@@ -1,8 +1,5 @@
-.env
-.env.*
-!.env.example
-.venv/
-venv/
+.git
+.github
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -13,8 +10,11 @@ __pycache__/
 htmlcov/
 dist/
 build/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
 storage/
 workspace_data/
 eval/results/
-.DS_Store
-*.log

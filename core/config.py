@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     nasa_api_key: str = Field(default="DEMO_KEY", alias="NASA_API_KEY")
     brave_api_key: str = Field(default="", alias="BRAVE_API_KEY")
 
+    # ---- Serving ----
+    cors_origins: str = Field(
+        default="http://localhost:8501,http://127.0.0.1:8501",
+        alias="ASTRAL_CORS_ORIGINS",
+    )
+
     # ---- MCP ----
     enable_node_mcp_servers: bool = Field(default=True, alias="ASTRAL_ENABLE_NODE_MCP_SERVERS")
     fs_root: Path = Field(default=REPO_ROOT / "workspace_data", alias="ASTRAL_FS_ROOT")
@@ -69,6 +75,14 @@ class Settings(BaseSettings):
     @classmethod
     def _absolutise(cls, value: Path) -> Path:
         return value if value.is_absolute() else (REPO_ROOT / value).resolve()
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Allowed browser origins for CORS, parsed from a comma-separated env var."""
+        raw = self.cors_origins.strip()
+        if raw == "*":
+            return ["*"]
+        return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
     @property
     def llm_enabled(self) -> bool:

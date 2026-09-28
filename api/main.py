@@ -45,8 +45,12 @@ app = FastAPI(
         "Every agent is an MCP client; every answer is grounded in a knowledge graph."
     ),
 )
+settings = get_settings()
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 _SESSIONS: dict[str, dict[str, Any]] = {}
@@ -147,6 +151,7 @@ async def health() -> dict[str, Any]:
         "brave_search": bool(settings.brave_api_key),
         "neo4j": settings.neo4j_enabled,
         "langfuse": settings.langfuse_enabled,
+        "cors_origins": settings.cors_origins_list,
         "workflow_backend": get_workflow().backend,
         "mcp_servers": [s["name"] for s in describe_registry() if s["enabled"]],
         "mcp_servers_disabled": [s["name"] for s in describe_registry() if not s["enabled"]],
