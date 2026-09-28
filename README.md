@@ -21,43 +21,12 @@ instead of silently inventing an answer.
 
 ## Architecture At A Glance
 
-This diagram is rendered directly by GitHub. Read it top to bottom: requests enter the
-API, the workflow routes work to domain agents, agents reach external capabilities only
-through approved MCP servers, and the final answer is checked against graph-backed
-evidence before it is returned.
+This compact map shows the main runtime connections: requests enter the API, agents
+cross the MCP boundary through a permissioned registry, tool results become graph-backed
+evidence, and the final answer is checked before it is returned.
 
-```mermaid
-flowchart TD
-    User["User question"] --> API["FastAPI service"]
+![AstralGraph architecture map](docs/assets/architecture-map.svg)
 
-    subgraph Workflow["Agent workflow"]
-        Parser["Intent parser"]
-        Agents["Domain agents"]
-        Critic["Critic"]
-    end
-
-    subgraph MCP["MCP boundary"]
-        Registry["Registry and permissions"]
-        Servers["Custom and official servers"]
-    end
-
-    subgraph Evidence["Evidence layer"]
-        RAG["Retrieval"]
-        Graph["Provenance graph"]
-        Consensus["Consensus checks"]
-    end
-
-    API --> Parser
-    Parser --> Agents
-    Agents --> Registry
-    Registry --> Servers
-    Servers --> RAG
-    Servers --> Graph
-    RAG --> Graph
-    Graph --> Consensus
-    Consensus --> Critic
-    Critic --> API
-```
 
 | Layer | Implementation | What to inspect |
 | --- | --- | --- |
