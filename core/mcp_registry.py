@@ -209,3 +209,48 @@ def describe_registry() -> list[dict[str, object]]:
         }
         for spec in build_registry().values()
     ]
+
+
+def describe_mcp_topology() -> dict[str, object]:
+    """Return a high-level agent-to-server connection map.
+
+    This read-only view is designed for API clients, documentation, and tests that need
+    to explain how AstralGraph connects agents to MCP servers without launching live
+    MCP sessions.
+    """
+
+    registry = {item["name"]: item for item in describe_registry()}
+    connections = [
+        {"agent": agent, "server": server}
+        for agent, servers in sorted(AGENT_PERMISSIONS.items())
+        for server in sorted(servers)
+    ]
+
+    return {
+        "agents": [
+            {
+                "agent": agent,
+                "servers": sorted(servers),
+                "server_count": len(servers),
+            }
+            for agent, servers in sorted(AGENT_PERMISSIONS.items())
+        ],
+        "servers": sorted(registry.values(), key=lambda item: str(item["name"])),
+        "connections": connections,
+        "connection_count": len(connections),
+        "evidence_servers": sorted(EVIDENCE_SERVERS),
+        "independent_source_pairs": [
+            {"left": left, "right": right} for left, right in INDEPENDENT_SOURCE_PAIRS
+        ],
+        "disabled_servers": sorted(
+            name for name, spec in build_registry().items() if not spec.enabled
+        ),
+        "unknown_permission_servers": sorted(
+            {
+                server
+                for servers in AGENT_PERMISSIONS.values()
+                for server in servers
+                if server not in registry
+            }
+        ),
+    }
