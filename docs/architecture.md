@@ -42,6 +42,33 @@ hub. The hub checks that:
 
 This preserves the existing architecture while making external actions auditable.
 
+## High-Level MCP Connection Map
+
+The MCP registry is the control plane for tool access. It separates custom astronomy
+servers from official pre-built MCP servers and gives each agent only the servers it
+needs for its role.
+
+| Agent | Role | MCP connection |
+| --- | --- | --- |
+| `intent_parser` | Classifies the question and extracts entities. | No tool access. |
+| `neo_agent` | Near-Earth object questions. | `nasa_neo`, `jpl_sbdb`, `astro_compute` |
+| `exoplanet_agent` | Confirmed exoplanet search and summaries. | `exoplanet`, `astro_compute` |
+| `events_agent` | ISS, Earth events, space weather, launches. | `iss`, `eonet`, `space_weather`, `launch`, `astro_compute` |
+| `literature_agent` | Retrieval and web-backed literature lookup. | `rag`, `brave_search` |
+| `critic_agent` | Re-checks calculations and selected source claims. | `astro_compute`, `jpl_sbdb`, `memory` |
+| `orchestrator` | Session-level synthesis and persistence. | `filesystem`, `memory` |
+| `ingest` | Offline corpus loading. | `rag`, `filesystem` |
+| `eval_harness` | Benchmark execution. | No tool access. |
+
+The important design point is that the connection map is explicit data, not an informal
+convention. `GET /mcp/servers` exposes the registry and permission matrix, while
+`GET /mcp/topology` exposes a client-friendly topology view with agents, servers,
+edges, evidence servers, disabled optional servers, and independent source pairs.
+
+Official MCP servers are optional because they require Node's `npx` runtime and, for
+Brave Search, a `BRAVE_API_KEY`. If they are unavailable, the topology endpoint marks
+them disabled instead of hiding them.
+
 ## Provenance And Consensus
 
 Facts carry enough metadata to answer "where did this come from?" The consensus module
