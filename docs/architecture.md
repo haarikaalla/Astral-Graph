@@ -6,6 +6,8 @@ provenance.
 
 ## System Diagram
 
+![AstralGraph architecture map](assets/architecture-map.svg)
+
 ```mermaid
 flowchart TD
     Request["AskRequest"] --> API["api/main.py"]
