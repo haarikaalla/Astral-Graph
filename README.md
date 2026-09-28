@@ -19,30 +19,57 @@ deterministic calculations that are recorded in a graph with provenance.
 If evidence is missing or sources disagree, the system should surface that uncertainty
 instead of silently inventing an answer.
 
-## Architecture
+## Architecture At A Glance
+
+This diagram is rendered directly by GitHub. Read it top to bottom: requests enter the
+API, the workflow routes work to domain agents, agents reach external capabilities only
+through approved MCP servers, and the final answer is checked against graph-backed
+evidence before it is returned.
 
 ```mermaid
 flowchart TD
-    Q["Question"] --> P["Intent parser"]
-    P --> A["Domain agents"]
-    A --> M["MCP servers"]
-    M --> G["Provenance graph"]
-    G --> C["Consensus and critic"]
-    C --> O["Final answer"]
-    C -->|Needs more evidence| A
+    User["User question"] --> API["FastAPI service"]
+
+    subgraph Workflow["Agent workflow"]
+        Parser["Intent parser"]
+        Agents["Domain agents"]
+        Critic["Critic"]
+    end
+
+    subgraph MCP["MCP boundary"]
+        Registry["Registry and permissions"]
+        Servers["Custom and official servers"]
+    end
+
+    subgraph Evidence["Evidence layer"]
+        RAG["Retrieval"]
+        Graph["Provenance graph"]
+        Consensus["Consensus checks"]
+    end
+
+    API --> Parser
+    Parser --> Agents
+    Agents --> Registry
+    Registry --> Servers
+    Servers --> RAG
+    Servers --> Graph
+    RAG --> Graph
+    Graph --> Consensus
+    Consensus --> Critic
+    Critic --> API
 ```
 
-| Layer | Implementation |
-| --- | --- |
-| API and streaming | `api/main.py` |
-| Multi-agent workflow | `agents/workflow.py`, `agents/orchestrator.py` |
-| MCP client and registry | `core/mcp_client.py`, `core/mcp_registry.py` |
-| Custom MCP servers | `mcp_servers/` |
-| Retrieval | `rag/` |
-| Provenance graph and consensus | `graph/` |
-| Guardrails | `guardrails/` |
-| Evaluation | `eval/` |
-| Dashboard | `ui/app.py` |
+| Layer | Implementation | What to inspect |
+| --- | --- | --- |
+| API and streaming | `api/main.py` | `POST /ask`, `POST /ask/stream`, `GET /health` |
+| Multi-agent workflow | `agents/workflow.py`, `agents/orchestrator.py` | Intent routing, agent execution, final synthesis |
+| MCP client and registry | `core/mcp_client.py`, `core/mcp_registry.py` | `GET /mcp/topology`, `GET /mcp/servers`, `GET /mcp/tools` |
+| Custom MCP servers | `mcp_servers/` | Astronomy data, deterministic calculations, local RAG |
+| Retrieval | `rag/` | `GET /rag/stats`, `POST /rag/ingest` |
+| Provenance graph and consensus | `graph/` | `GET /graph/{session_id}` |
+| Guardrails | `guardrails/` | Budgets, permissions, citations, numeric grounding |
+| Evaluation | `eval/` | `python -m eval.harness`, `GET /eval/latest` |
+| Dashboard | `ui/app.py` | Streamlit UI for local exploration |
 
 Detailed notes are in [docs/architecture.md](docs/architecture.md),
 [docs/evaluation.md](docs/evaluation.md), and [docs/operations.md](docs/operations.md).
